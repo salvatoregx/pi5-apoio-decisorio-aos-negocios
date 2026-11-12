@@ -1,0 +1,11 @@
+# Revisão obrigatória por frente. Substituir os responsáveis pelos usuários do GitHub de cada colega.
+*                         @salvatoregx
+/src/                     @salvatoregx
+/infra/                   @salvatoregx
+/config/                  @salvatoregx
+# /sql/transformacao/     @usuario-frente-t1
+# /sql/ddl/               @usuario-frente-t2
+# /sql/dml/               @usuario-frente-t2
+# /olap/                  @usuario-frente-olap
+# /docs/                  @usuario-frente-docs
+# /README.md              @usuario-frente-docs

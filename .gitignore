@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[oc]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Dados gerados localmente (a fonte é pública e o lake fica no Azure)
+data/
+
+# Configuração local
+.env
+
+# Editores e sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

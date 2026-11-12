@@ -1,0 +1,12 @@
+{
+  "descricao": "Backblaze Drive Stats - tabela Apache Iceberg publica (credenciais somente leitura divulgadas pela Backblaze)",
+  "documentacao": "https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data",
+  "s3": {
+    "key_id": "0045f0571db506a0000000017",
+    "secret": "K004Fs/bgmTk5dgo6GAVm2Waj3Ka+TE",
+    "endpoint": "https://s3.us-west-004.backblazeb2.com",
+    "regiao": "us-west-004"
+  },
+  "bucket": "drivestats-iceberg",
+  "prefixo": "drivestats"
+}

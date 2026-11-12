@@ -1,0 +1,72 @@
+{
+  "_nota": "Mapeamento código -> cidade NÃO é publicado pela Backblaze nos relatórios Drive Stats. A Backblaze declara datacenters em Sacramento-CA, Stockton-CA, Phoenix-AZ, Reston-VA, Amsterdã-NL e Toronto-ON (https://www.backblaze.com/docs/cloud-storage-data-regions). A associação abaixo foi inferida do código IATA; sac0/sac2 podem ser Sacramento ou Stockton (ambos no Vale Central da Califórnia, clima semelhante). Coordenadas aproximadas, suficientes para cruzar com dados meteorológicos.",
+  "datacenters": [
+    {
+      "datacenter": "sac0",
+      "cidade": "Sacramento ou Stockton (não confirmado)",
+      "estado_provincia": "Califórnia",
+      "pais": "Estados Unidos",
+      "regiao_backblaze": "US West",
+      "latitude": 38.58,
+      "longitude": -121.49,
+      "fuso_horario": "America/Los_Angeles",
+      "confianca_localizacao": "incerta (Sacramento/Stockton)"
+    },
+    {
+      "datacenter": "sac2",
+      "cidade": "Sacramento ou Stockton (não confirmado)",
+      "estado_provincia": "Califórnia",
+      "pais": "Estados Unidos",
+      "regiao_backblaze": "US West",
+      "latitude": 38.58,
+      "longitude": -121.49,
+      "fuso_horario": "America/Los_Angeles",
+      "confianca_localizacao": "incerta (Sacramento/Stockton)"
+    },
+    {
+      "datacenter": "phx1",
+      "cidade": "Phoenix",
+      "estado_provincia": "Arizona",
+      "pais": "Estados Unidos",
+      "regiao_backblaze": "US West",
+      "latitude": 33.45,
+      "longitude": -112.07,
+      "fuso_horario": "America/Phoenix",
+      "confianca_localizacao": "inferida (código IATA)"
+    },
+    {
+      "datacenter": "iad1",
+      "cidade": "Reston / Norte da Virgínia",
+      "estado_provincia": "Virgínia",
+      "pais": "Estados Unidos",
+      "regiao_backblaze": "US East",
+      "latitude": 38.96,
+      "longitude": -77.36,
+      "fuso_horario": "America/New_York",
+      "confianca_localizacao": "inferida (código IATA)"
+    },
+    {
+      "datacenter": "ams5",
+      "cidade": "Amsterdã",
+      "estado_provincia": "Holanda do Norte",
+      "pais": "Países Baixos",
+      "regiao_backblaze": "EU Central",
+      "latitude": 52.37,
+      "longitude": 4.9,
+      "fuso_horario": "Europe/Amsterdam",
+      "confianca_localizacao": "inferida (código IATA)"
+    },
+    {
+      "datacenter": "yyz1",
+      "cidade": "Toronto",
+      "estado_provincia": "Ontário",
+      "pais": "Canadá",
+      "regiao_backblaze": "CA East",
+      "latitude": 43.65,
+      "longitude": -79.38,
+      "fuso_horario": "America/Toronto",
+      "confianca_localizacao": "inferida (código IATA)",
+      "observacao": "Região CA East inaugurada em jan/2025"
+    }
+  ]
+}

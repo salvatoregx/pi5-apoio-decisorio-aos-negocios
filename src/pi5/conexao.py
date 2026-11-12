@@ -22,6 +22,8 @@ def conectar(recursos: Recursos, dir_temp: Path, iceberg: ConfigIceberg | None =
     con.execute(f"SET temp_directory = {literal(dir_temp)}")
     # A ordem das linhas não importa para os COPY da extração, e mantê-la custa memória.
     con.execute("SET preserve_insertion_order = false")
+    # Barras de progresso de vários processos se misturam no log.
+    con.execute("SET enable_progress_bar = false")
     if iceberg:
         _habilitar_iceberg(con, iceberg)
     return con

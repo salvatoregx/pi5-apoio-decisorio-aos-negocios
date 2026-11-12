@@ -11,6 +11,9 @@ dependencies = [
     "filelock>=3.16",
 ]
 
+[project.scripts]
+etl = "pi5.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

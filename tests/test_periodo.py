@@ -3,7 +3,7 @@ from itertools import pairwise
 
 import pytest
 
-from pi5.periodo import meses, partes_do_mes, proximo_mes
+from drivestats_el.periodo import meses, partes_do_mes, proximo_mes
 
 
 def test_meses_atravessa_virada_de_ano():

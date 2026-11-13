@@ -1,8 +1,8 @@
 import duckdb
 import pytest
 
-from pi5.conexao import literal
-from pi5.fonte import FonteParquet, colunas_extraidas, snapshot_mais_recente, validar_colunas, versao_metadata
+from drivestats_el.conexao import literal
+from drivestats_el.fonte import FonteParquet, colunas_extraidas, snapshot_mais_recente, validar_colunas, versao_metadata
 
 BASE = "s3://drivestats-iceberg/drivestats/metadata"
 

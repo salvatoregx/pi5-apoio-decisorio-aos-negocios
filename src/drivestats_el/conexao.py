@@ -6,7 +6,7 @@ from pathlib import Path
 
 import duckdb
 
-from pi5.configuracao import ConfigIceberg, Recursos
+from drivestats_el.configuracao import ConfigIceberg, Recursos
 
 
 def literal(valor: object) -> str:

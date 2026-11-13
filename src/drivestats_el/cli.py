@@ -1,4 +1,4 @@
-"""Linha de comando: `uv run etl <comando> [opções]`."""
+"""Linha de comando: `uv run drivestats <comando> [opções]`."""
 
 from __future__ import annotations
 
@@ -7,13 +7,13 @@ import logging
 import sys
 import time
 
-from pi5 import controle
-from pi5.configuracao import DIR_DADOS, PERIODO_FIM, PERIODO_INICIO
-from pi5.execucao import DESTINOS, Opcoes, configurar_log, extrair, preparar_destino
-from pi5.periodo import meses
-from pi5.trava import execucao_exclusiva
+from drivestats_el import controle
+from drivestats_el.configuracao import DIR_DADOS, PERIODO_FIM, PERIODO_INICIO
+from drivestats_el.execucao import DESTINOS, Opcoes, configurar_log, extrair, preparar_destino
+from drivestats_el.periodo import meses
+from drivestats_el.trava import execucao_exclusiva
 
-log = logging.getLogger("pi5")
+log = logging.getLogger("drivestats_el")
 
 AJUDA_AMBIENTE = """\
 variáveis de ambiente:
@@ -27,7 +27,7 @@ variáveis de ambiente:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="etl",
+        prog="drivestats",
         description="E e L do Backblaze Drive Stats: Iceberg público -> bronze (local ou ADLS Gen2)",
         epilog=AJUDA_AMBIENTE,
         formatter_class=argparse.RawDescriptionHelpFormatter,

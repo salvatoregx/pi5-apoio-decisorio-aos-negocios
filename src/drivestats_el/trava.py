@@ -15,7 +15,7 @@ from filelock import FileLock, Timeout
 @contextmanager
 def execucao_exclusiva(dir_dados: Path) -> Iterator[None]:
     dir_dados.mkdir(parents=True, exist_ok=True)
-    trava = FileLock(dir_dados / ".etl.lock", timeout=0)
+    trava = FileLock(dir_dados / ".drivestats.lock", timeout=0)
     try:
         trava.acquire()
     except Timeout:

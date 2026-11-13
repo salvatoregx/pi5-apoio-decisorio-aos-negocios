@@ -53,13 +53,13 @@ Documentação da fonte: <https://www.backblaze.com/cloud-storage/resources/hard
 
 ## Extração e carga (E e L)
 
-O pacote `pi5` (em `src/pi5/`) copia a tabela Iceberg para a camada bronze, mês a mês.
+O pacote `drivestats_el` (em `src/drivestats_el/`) copia a tabela Iceberg para a camada bronze, mês a mês.
 
 1. **Snapshot e contagem.** Localiza o metadata.json mais recente da tabela e soma as linhas por mês
    no manifesto, ignorando arquivos marcados como removidos.
 2. **Extração.** Cada mês é lido em fatias de 7 dias (um Parquet por fatia, compressão zstd), para
    limitar a memória. Entram as colunas de identificação e os 44 atributos SMART com pelo menos 1% de
-   preenchimento na janela (`src/pi5/catalogo_smart.py`), com os nomes originais da fonte.
+   preenchimento na janela (`src/drivestats_el/catalogo_smart.py`), com os nomes originais da fonte.
 3. **Carga.** As fatias do mês substituem o conteúdo da pasta `ano_mes=AAAA-MM` no lake.
 4. **Conciliação.** Linhas gravadas devem ser iguais às do manifesto. O resultado fica em
    `_controle/AAAA-MM.json`, no próprio lake: status, snapshot, linhas, bytes e duração.
@@ -110,12 +110,12 @@ Detalhes, região e decisões de segurança: [`infra/README.md`](infra/README.md
 
 ```bash
 uv sync
-uv run etl extrair --inicio 2021-07 --fim 2021-09 --destino local   # grava em data/bronze
-uv run etl status --destino local
+uv run drivestats extrair --inicio 2021-07 --fim 2021-09 --destino local   # grava em data/bronze
+uv run drivestats status --destino local
 ```
 
 Com `PI5_ADLS_CONTA` definida e `az login` feito, o destino padrão passa a ser o lake.
-`uv run etl --help` lista as opções e as variáveis de ambiente.
+`uv run drivestats --help` lista as opções e as variáveis de ambiente.
 
 ### Testes
 
@@ -129,7 +129,7 @@ Os testes não acessam rede nem o Azure: a fonte é simulada com arquivos Parque
 
 | Pasta | Conteúdo |
 |---|---|
-| `src/pi5/` | extração e carga (E e L) |
+| `src/drivestats_el/` | extração e carga (E e L) |
 | `tests/` | testes automatizados |
 | `config/` | fonte de dados, datacenters e catálogo de fabricantes |
 | `infra/` | provisionamento e extração no Azure |

@@ -1,9 +1,9 @@
 import pytest
 
-from pi5 import controle, execucao
-from pi5.armazenamento import ArmazenamentoLocal
-from pi5.cli import main
-from pi5.extracao import Resumo
+from drivestats_el import controle, execucao
+from drivestats_el.armazenamento import ArmazenamentoLocal
+from drivestats_el.cli import main
+from drivestats_el.extracao import Resumo
 
 
 def test_dividir_alterna_meses():

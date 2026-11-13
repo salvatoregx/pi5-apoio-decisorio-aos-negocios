@@ -1,6 +1,6 @@
 import json
 
-from pi5.configuracao import ConfigIceberg, ConfigLake, Recursos
+from drivestats_el.configuracao import ConfigIceberg, ConfigLake, Recursos
 
 
 def test_recursos_do_ambiente(monkeypatch):

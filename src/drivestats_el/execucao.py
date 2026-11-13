@@ -16,11 +16,11 @@ from itertools import repeat
 from multiprocessing import get_context
 from pathlib import Path
 
-from pi5 import extracao
-from pi5.armazenamento import Armazenamento, ArmazenamentoLake, ArmazenamentoLocal
-from pi5.conexao import conectar
-from pi5.configuracao import DIR_DADOS, ConfigIceberg, ConfigLake, Recursos
-from pi5.fonte import FonteIceberg
+from drivestats_el import extracao
+from drivestats_el.armazenamento import Armazenamento, ArmazenamentoLake, ArmazenamentoLocal
+from drivestats_el.conexao import conectar
+from drivestats_el.configuracao import DIR_DADOS, ConfigIceberg, ConfigLake, Recursos
+from drivestats_el.fonte import FonteIceberg
 
 DESTINOS = ("auto", "local", "lake")
 FORMATO_LOG = "%(asctime)s %(levelname)s [%(process)d] %(message)s"

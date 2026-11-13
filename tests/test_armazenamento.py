@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from azure.core.exceptions import ResourceNotFoundError
 
-from pi5.armazenamento import ArmazenamentoLake, ArmazenamentoLocal
-from pi5.configuracao import ConfigLake
+from drivestats_el.armazenamento import ArmazenamentoLake, ArmazenamentoLocal
+from drivestats_el.configuracao import ConfigLake
 
 
 def test_local_texto_ida_e_volta(tmp_path):

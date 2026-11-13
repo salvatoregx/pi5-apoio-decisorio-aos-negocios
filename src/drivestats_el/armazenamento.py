@@ -10,7 +10,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
-from pi5.configuracao import ConfigLake
+from drivestats_el.configuracao import ConfigLake
 
 if TYPE_CHECKING:
     from azure.storage.filedatalake import FileSystemClient

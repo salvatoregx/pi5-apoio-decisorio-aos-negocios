@@ -1,5 +1,5 @@
-from pi5.conexao import conectar, literal
-from pi5.configuracao import Recursos
+from drivestats_el.conexao import conectar, literal
+from drivestats_el.configuracao import Recursos
 
 
 def test_literal_escapa_aspas():

@@ -18,12 +18,12 @@ from pathlib import Path
 
 import duckdb
 
-from pi5 import controle
-from pi5.armazenamento import Armazenamento
-from pi5.conexao import literal
-from pi5.configuracao import Recursos
-from pi5.fonte import ContagemMes, Fonte, colunas_extraidas, validar_colunas
-from pi5.periodo import partes_do_mes
+from drivestats_el import controle
+from drivestats_el.armazenamento import Armazenamento
+from drivestats_el.conexao import literal
+from drivestats_el.configuracao import Recursos
+from drivestats_el.fonte import ContagemMes, Fonte, colunas_extraidas, validar_colunas
+from drivestats_el.periodo import partes_do_mes
 
 log = logging.getLogger(__name__)
 

@@ -111,5 +111,5 @@ Azure SQL:  $SQL_SERVIDOR.database.windows.net, banco $SQL_BANCO
 
 Para extrair localmente direto para o lake:
   export PI5_ADLS_CONTA=$STORAGE
-  uv run etl extrair --paralelo 2
+  uv run drivestats extrair --paralelo 2
 FIM

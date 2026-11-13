@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Roda a extração num contêiner do Azure (ACI), gravando direto no lake.
 #
-# Uso (Cloud Shell):  bash infra/extrair_no_azure.sh [opções do etl extrair]
+# Uso (Cloud Shell):  bash infra/extrair_no_azure.sh [opções do drivestats extrair]
 #   ex.: bash infra/extrair_no_azure.sh --inicio 2021-07 --fim 2026-06
 #
-# O contêiner clona o repositório público, instala as dependências e roda `etl extrair`.
+# O contêiner clona o repositório público, instala as dependências e roda `drivestats extrair`.
 # A autenticação no lake é por identidade gerenciada: nenhuma chave passa pelo contêiner.
 # Meses já extraídos são pulados, então rodar de novo só completa o que faltou.
 #
@@ -47,7 +47,7 @@ if existe az container show -n "$CONTEINER" -g "$GRUPO"; then
 fi
 comando="git clone --depth 1 --branch $REVISAO $REPOSITORIO /app && cd /app"
 comando+=" && uv sync --locked --no-dev"
-comando+=" && uv run --no-dev etl extrair --destino lake --paralelo $PARALELO $*"
+comando+=" && uv run --no-dev drivestats extrair --destino lake --paralelo $PARALELO $*"
 az container create -n "$CONTEINER" -g "$GRUPO" -l "$LOCAL" \
   --image "$IMAGEM" --os-type Linux --cpu "$CPU" --memory "$MEMORIA_GB" \
   --restart-policy Never --assign-identity "$IDENTIDADE_ID" \

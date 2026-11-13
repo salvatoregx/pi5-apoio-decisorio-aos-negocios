@@ -1,11 +1,11 @@
 import duckdb
 import pytest
 
-from pi5 import controle, extracao
-from pi5.armazenamento import ArmazenamentoLocal
-from pi5.conexao import literal
-from pi5.configuracao import Recursos
-from pi5.fonte import COLUNAS_IDENTIFICACAO, FonteParquet, colunas_extraidas
+from drivestats_el import controle, extracao
+from drivestats_el.armazenamento import ArmazenamentoLocal
+from drivestats_el.conexao import literal
+from drivestats_el.configuracao import Recursos
+from drivestats_el.fonte import COLUNAS_IDENTIFICACAO, FonteParquet, colunas_extraidas
 
 RECURSOS = Recursos(memoria="512MB", threads=2, dias_por_parte=10)
 

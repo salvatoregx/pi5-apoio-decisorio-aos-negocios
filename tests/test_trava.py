@@ -1,6 +1,6 @@
 import pytest
 
-from pi5.trava import execucao_exclusiva
+from drivestats_el.trava import execucao_exclusiva
 
 
 def test_segunda_execucao_e_recusada(tmp_path):

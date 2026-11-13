@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 
-from pi5.armazenamento import Armazenamento
+from drivestats_el.armazenamento import Armazenamento
 
 DIRETORIO = "_controle"
 

@@ -1,5 +1,5 @@
 [project]
-name = "pi5"
+name = "drivestats-el"
 version = "0.2.0"
 description = "ELT sobre o Backblaze Drive Stats: extração do Iceberg público e carga no ADLS Gen2"
 readme = "README.md"
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-etl = "pi5.cli:main"
+drivestats = "drivestats_el.cli:main"
 
 [dependency-groups]
 dev = [

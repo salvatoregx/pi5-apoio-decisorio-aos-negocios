@@ -17,9 +17,9 @@ from typing import Protocol
 
 import duckdb
 
-from pi5.catalogo_smart import ATRIBUTOS
-from pi5.conexao import literal
-from pi5.configuracao import ConfigIceberg
+from drivestats_el.catalogo_smart import ATRIBUTOS
+from drivestats_el.conexao import literal
+from drivestats_el.configuracao import ConfigIceberg
 
 COLUNAS_IDENTIFICACAO = [
     "date",

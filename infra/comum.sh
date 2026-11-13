@@ -5,7 +5,9 @@
 # shellcheck disable=SC2034  # variáveis usadas pelos scripts que carregam este arquivo
 
 PREFIXO="${PREFIXO:-pi5}"
-LOCAL="${LOCAL:-eastus2}"
+# Assinaturas Azure for Students só criam servidores SQL (e, portanto, Synapse) em
+# algumas regiões. Ver infra/README.md.
+LOCAL="${LOCAL:-brazilsouth}"
 GRUPO="${GRUPO:-rg-$PREFIXO}"
 
 ASSINATURA="$(az account show --query id -o tsv)"

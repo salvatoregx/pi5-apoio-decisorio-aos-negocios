@@ -2,7 +2,7 @@
 # Cria o ambiente do projeto no Azure. Idempotente: rodar de novo só completa o que faltar.
 #
 # Uso (Cloud Shell, já autenticado):  bash infra/provisionar.sh
-# Variáveis opcionais: PREFIXO (pi5), LOCAL (eastus2), GRUPO (rg-pi5), ORCAMENTO_USD (25 por mês)
+# Variáveis opcionais: PREFIXO (pi5), LOCAL (brazilsouth), GRUPO (rg-pi5), ORCAMENTO_USD (25 por mês)
 #
 # Recursos:
 #   - ADLS Gen2 com os containers "lake" (bronze/silver/gold) e "synapse" (padrão do workspace)
@@ -46,7 +46,7 @@ if ! existe az synapse workspace show -n "$SYNAPSE" -g "$GRUPO"; then
   senha="$(openssl rand -base64 24 | tr -d '/+=')Aa1!"
   az synapse workspace create -n "$SYNAPSE" -g "$GRUPO" -l "$LOCAL" \
     --storage-account "$STORAGE" --file-system "$CONTAINER_SYNAPSE" \
-    --sql-admin-login-user "admpi5" --sql-admin-login-password "$senha" -o none
+    --sql-admin-login-user "admpi5" --sql-admin-login-password "$senha" --only-show-errors -o none
   unset senha
 fi
 az synapse sql ad-admin create --workspace-name "$SYNAPSE" -g "$GRUPO" \
@@ -72,7 +72,7 @@ if ! existe az sql server firewall-rule show -n PermitirTodos -s "$SQL_SERVIDOR"
 fi
 if ! existe az sql db show -n "$SQL_BANCO" -s "$SQL_SERVIDOR" -g "$GRUPO"; then
   az sql db create -n "$SQL_BANCO" -s "$SQL_SERVIDOR" -g "$GRUPO" \
-    -e GeneralPurpose -f Gen5 -c 2 --compute-model Serverless \
+    -e GeneralPurpose -f Gen5 -c 2 --compute-model Serverless --backup-storage-redundancy Local \
     --use-free-limit --free-limit-exhaustion-behavior AutoPause -o none
 fi
 

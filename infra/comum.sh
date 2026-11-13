@@ -25,10 +25,17 @@ etapa() { printf '\n== %s\n' "$*"; }
 existe() { "$@" --only-show-errors -o none 2>/dev/null; }
 
 # atribuir_papel <object-id> <User|ServicePrincipal|Group> <papel> <escopo>
+# Marca PAPEL_CRIADO=true quando cria a atribuição: o Azure leva alguns minutos para aplicá-la.
+PAPEL_CRIADO=false
 atribuir_papel() {
   local principal="$1" tipo="$2" papel="$3" escopo="$4"
+  if [[ -z "$principal" || -z "$escopo" ]]; then
+    echo "atribuir_papel: principal ou escopo vazio ($papel)" >&2
+    return 1
+  fi
   if [[ -z "$(az role assignment list --assignee "$principal" --role "$papel" --scope "$escopo" --query '[0].id' -o tsv)" ]]; then
     az role assignment create --assignee-object-id "$principal" --assignee-principal-type "$tipo" \
       --role "$papel" --scope "$escopo" -o none
+    PAPEL_CRIADO=true
   fi
 }

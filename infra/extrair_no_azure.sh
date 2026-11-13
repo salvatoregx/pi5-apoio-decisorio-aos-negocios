@@ -27,17 +27,16 @@ IDENTIDADE="id-${PREFIXO}-extracao"
 CONTEINER="aci-${PREFIXO}-extracao"
 
 etapa "Identidade gerenciada $IDENTIDADE"
-nova=false
 if ! existe az identity show -n "$IDENTIDADE" -g "$GRUPO"; then
   az identity create -n "$IDENTIDADE" -g "$GRUPO" -l "$LOCAL" -o none
-  nova=true
 fi
-read -r IDENTIDADE_ID IDENTIDADE_CLIENTE IDENTIDADE_PRINCIPAL < <(
-  az identity show -n "$IDENTIDADE" -g "$GRUPO" --query "[id, clientId, principalId]" -o tsv
-)
+identidade() { az identity show -n "$IDENTIDADE" -g "$GRUPO" --query "$1" -o tsv; }
+IDENTIDADE_ID="$(identidade id)"
+IDENTIDADE_CLIENTE="$(identidade clientId)"
+IDENTIDADE_PRINCIPAL="$(identidade principalId)"
 STORAGE_ID="$(az storage account show -n "$STORAGE" -g "$GRUPO" --query id -o tsv)"
 atribuir_papel "$IDENTIDADE_PRINCIPAL" ServicePrincipal "Storage Blob Data Contributor" "$STORAGE_ID"
-if [[ "$nova" == true ]]; then
+if [[ "$PAPEL_CRIADO" == true ]]; then
   echo "Aguardando a propagação do papel recém-criado (2 min)..."
   sleep 120
 fi

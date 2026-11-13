@@ -75,10 +75,8 @@ if ! existe az sql db show -n "$SQL_BANCO" -s "$SQL_SERVIDOR" -g "$GRUPO"; then
     -e GeneralPurpose -f Gen5 -c 2 --compute-model Serverless --backup-storage-redundancy Local \
     --use-free-limit --free-limit-exhaustion-behavior AutoPause -o none
 fi
-# Pausa após 15 min sem uso (o mínimo permitido; o padrão é 60). Cada período ligado consome a
-# cota gratuita de vCore-segundos, então pausar cedo faz a cota render mais. Vale também para o
-# banco que já existe.
-az sql db update -n "$SQL_BANCO" -s "$SQL_SERVIDOR" -g "$GRUPO" --auto-pause-delay 15 -o none
+# A pausa por inatividade fica no padrão de 60 min: com a oferta gratuita pausando ao esgotar a
+# cota (AutoPause), o Azure não aceita outro valor (erro ProvisioningDisabled).
 
 etapa "Orçamento de US\$ $ORCAMENTO_USD por mês, alertas para $USUARIO_EMAIL"
 corpo="$(cat <<JSON

@@ -23,6 +23,22 @@ bash pi5-apoio-decisorio-aos-negocios/infra/provisionar.sh
 O script é idempotente: se algo falhar no meio, basta rodar de novo. Ao final, ele mostra
 os endereços do lake, do Synapse e do Azure SQL.
 
+## Como extrair para o lake
+
+Também no Cloud Shell, depois do provisionamento:
+
+```bash
+bash pi5-apoio-decisorio-aos-negocios/infra/extrair_no_azure.sh
+```
+
+O script cria uma identidade gerenciada com permissão de escrita no lake e sobe um contêiner
+(Azure Container Instances, 4 vCPU e 16 GB) que clona este repositório e roda
+`etl extrair --destino lake --paralelo 4`. As opções do `etl extrair` podem ser passadas
+ao script (ex.: `--inicio 2024-01 --fim 2024-12`). Meses já extraídos são pulados.
+
+Comandos para acompanhar e apagar o contêiner aparecem ao final da execução. O contêiner só
+é cobrado enquanto roda.
+
 ## Região
 
 A região padrão é **Brazil South** (`LOCAL=brazilsouth`), mais próxima dos integrantes.

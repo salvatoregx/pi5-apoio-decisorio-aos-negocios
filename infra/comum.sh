@@ -25,17 +25,23 @@ etapa() { printf '\n== %s\n' "$*"; }
 existe() { "$@" --only-show-errors -o none 2>/dev/null; }
 
 # atribuir_papel <object-id> <User|ServicePrincipal|Group> <papel> <escopo>
+#
+# Tenta criar sempre e aceita "já existe". Consultar antes não é confiável: depois que um recurso
+# é apagado, a atribuição antiga continua listada por um tempo e não vale para um recurso novo
+# com o mesmo nome.
 # Marca PAPEL_CRIADO=true quando cria a atribuição: o Azure leva alguns minutos para aplicá-la.
 PAPEL_CRIADO=false
 atribuir_papel() {
-  local principal="$1" tipo="$2" papel="$3" escopo="$4"
+  local principal="$1" tipo="$2" papel="$3" escopo="$4" saida
   if [[ -z "$principal" || -z "$escopo" ]]; then
     echo "atribuir_papel: principal ou escopo vazio ($papel)" >&2
     return 1
   fi
-  if [[ -z "$(az role assignment list --assignee "$principal" --role "$papel" --scope "$escopo" --query '[0].id' -o tsv)" ]]; then
-    az role assignment create --assignee-object-id "$principal" --assignee-principal-type "$tipo" \
-      --role "$papel" --scope "$escopo" -o none
+  if saida="$(az role assignment create --assignee-object-id "$principal" --assignee-principal-type "$tipo" \
+    --role "$papel" --scope "$escopo" -o none 2>&1)"; then
     PAPEL_CRIADO=true
+  elif [[ "$saida" != *RoleAssignmentExists* && "$saida" != *"already exists"* ]]; then
+    echo "$saida" >&2
+    return 1
   fi
 }

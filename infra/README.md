@@ -39,6 +39,25 @@ ao script (ex.: `--inicio 2024-01 --fim 2024-12`). Meses já extraídos são pul
 Comandos para acompanhar e apagar o contêiner aparecem ao final da execução. O contêiner só
 é cobrado enquanto roda.
 
+## Acesso dos integrantes
+
+```bash
+bash pi5-apoio-decisorio-aos-negocios/infra/conceder_acesso.sh            aluno1@senacsp.edu.br aluno2@senacsp.edu.br
+bash pi5-apoio-decisorio-aos-negocios/infra/conceder_acesso.sh --leitura  professor@senacsp.edu.br
+```
+
+Os e-mails entram só como argumento, nada fica gravado no repositório. O script confere todos no
+diretório antes de alterar qualquer coisa e para se algum não existir.
+
+| Perfil | Portal | Lake | Synapse | Azure SQL (`dw`) |
+|---|---|---|---|---|
+| contribuição (padrão) | Leitor no grupo | Storage Blob Data Contributor | Synapse Contributor + Synapse SQL Administrator | db_ddladmin, db_datareader, db_datawriter |
+| `--leitura` | Leitor no grupo | Storage Blob Data Reader | Synapse User | db_datareader |
+
+Os acessos dentro dos bancos são por T-SQL: o script imprime os comandos ao final, para rodar no
+editor de consultas do Azure SQL (portal) e, no perfil de leitura, também no Synapse Studio. No perfil
+de contribuição, os comandos incluem o usuário da identidade do Synapse no `dw`, usado na carga da gold.
+
 ## Região
 
 A região padrão é **Brazil South** (`LOCAL=brazilsouth`), mais próxima dos integrantes.

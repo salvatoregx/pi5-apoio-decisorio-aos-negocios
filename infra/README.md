@@ -7,7 +7,7 @@ Provisionamento do ambiente no Azure (assinatura Azure for Students), com az CLI
 | Grupo de recursos | `rg-pi5` (Brazil South) | agrupa tudo; apagar o grupo remove o projeto inteiro |
 | ADLS Gen2 | `stpi5<sufixo>` | container `lake` com `bronze/`, `silver/` e `gold/`; container `synapse`, padrão do workspace |
 | Synapse Analytics | `syn-pi5-<sufixo>` | só o pool SQL serverless, cobrado por volume lido |
-| Azure SQL Database | `sql-pi5-<sufixo>` / `dw` | DW na oferta gratuita, com pausa automática ao atingir o limite do mês |
+| Azure SQL Database | `sql-pi5-<sufixo>` / `dw` | DW na oferta gratuita: pausa após 15 min sem uso e ao atingir o limite do mês |
 
 O sufixo vem da assinatura: os nomes são únicos no Azure e iguais em toda execução.
 

@@ -101,11 +101,53 @@ Os scripts da camada Silver ficam em [`sql/transformacao/silver/`](sql/transform
    - **Segmentações operacionais:** Faixas de temperatura de 5 em 5 °C e faixas de idade em anos, com rótulos neutros e colunas de ordem (`ordem_faixa_temperatura`, `ordem_faixa_idade`) para ordenar nas consultas OLAP; flag de temperatura $\ge 40$ °C e flag para registros sem datacenter (localização só existe a partir de 2023).
 6. **`06_auditoria_regras_silver.sql`**: Consultas de auditoria, para rodar à mão, com 4 testes de integridade (volumetria e descarte de duplicatas, monitoramento de marcas desconhecidas, saneamento conferido contra a bronze e comparação entre alertas preditivos e falhas reais).
 
-> A camada Gold (agregações do modelo dimensional via CETAS no Synapse) fica em `sql/transformacao/gold/`, a cargo da frente do modelo dimensional.
+### Camada Gold (`sql/transformacao/gold/`)
+
+A gold é calculada no Synapse serverless e gravada no lake (`lake/gold/`) com CETAS (`CREATE EXTERNAL TABLE AS SELECT`). As agregações pesadas sobre os ~493 milhões de dias-disco ficam no serverless; o Azure SQL recebe só o resultado, que é pequeno.
+
+- **Intermediária `disco_mes`:** uma linha por disco × mês × datacenter do dia (~20 milhões de linhas). Todas as medidas são somas, contagens ou máximos, então reagregam sem erro para o disco, o modelo ou a fato mensal, sem reler a silver.
+- **Materialização por ano:** as CETAS que leem a silver rodam um ano por vez, com filtro literal em `ano_mes`. O filtro chega até a bronze (`filepath(1)`), que lê só as pastas do ano, e cada execução fica longe do limite de ~30 min do serverless.
+- **Último valor sem janela:** o último datacenter e o último modelo de cada disco saem de `MAX('AAAA-MM-DD' + valor)`, sem `ROW_NUMBER` sobre centenas de milhões de linhas.
+- **Datacenter efetivo:** `COALESCE(datacenter do dia, último datacenter conhecido do disco)`; sem nenhum, `desconhecido`. As fatos guardam quantos dias-disco foram imputados (viés de sobrevivência em 2021-2022).
+- **Percentis de temperatura (p50, p95):** calculados por histograma por grau (a temperatura é inteira), com soma acumulada, método do posto mais próximo.
+- **Catálogo dos fabricantes:** os CSVs de `config/` são copiados para `lake/referencia/` e lidos com `OPENROWSET` (CSV, parser 2.0). Modelos fora do catálogo entram com as especificações nulas.
+- **Conferência:** `90_conferencia_gold.sql` compara dias-disco e falhas entre a bronze e todas as tabelas da gold.
 
 ## Data warehouse: DDL e DML
 
-> A cargo da frente do modelo dimensional: scripts em `sql/ddl/` e `sql/dml/`.
+O data warehouse fica no Azure SQL Database (banco `dw`), em esquema estrela:
+
+```mermaid
+erDiagram
+    dim_calendario ||--o{ fato_confiabilidade_mensal : "id_data_mes"
+    dim_modelo ||--o{ fato_confiabilidade_mensal : "sk_modelo"
+    dim_datacenter ||--o{ fato_confiabilidade_mensal : "sk_datacenter"
+    dim_calendario ||--o{ fato_confiabilidade_faixas : "id_data_mes"
+    dim_modelo ||--o{ fato_confiabilidade_faixas : "sk_modelo"
+    dim_faixa_idade ||--o{ fato_confiabilidade_faixas : "id_faixa_idade"
+    dim_faixa_temperatura ||--o{ fato_confiabilidade_faixas : "id_faixa_temperatura"
+    dim_calendario ||--o{ fato_temperatura_dc_dia : "id_data"
+    dim_datacenter ||--o{ fato_temperatura_dc_dia : "sk_datacenter"
+    dim_modelo ||--o{ dim_disco : "sk_modelo"
+    dim_datacenter ||--o{ dim_disco : "sk_datacenter_ultimo"
+    dim_modelo ||--o{ dim_modelo_fonte : "sk_modelo"
+```
+
+| Tabela | Grão | Medidas principais |
+|---|---|---|
+| `fato_confiabilidade_mensal` | mês × modelo × datacenter | `dias_disco`, `falhas`, `dias_disco_imputados`, `discos_distintos`, `tb_dias`, soma/contagem de temperatura, `afr_pct` (calculada) |
+| `fato_confiabilidade_faixas` | mês × modelo × faixa de idade × faixa de temperatura | `dias_disco`, `falhas`, `afr_pct` (calculada) |
+| `fato_temperatura_dc_dia` | dia × datacenter × tipo de mídia | discos, capacidade, soma/contagem de temperatura, p50, p95, máximo, falhas |
+| `dim_modelo` | modelo | fabricante, mídia, função, capacidade, especificações do catálogo (MTBF, AFR declarado, potência, garantia) |
+| `dim_disco` | disco | primeira e última data, situação (ativo, falhou, retirado), último datacenter, horas, temperatura, máximos dos SMART 5, 187, 188, 197 e 198 |
+| `dim_calendario`, `dim_datacenter`, `dim_modelo_fonte`, `dim_faixa_*` | — | atributos para filtro e hierarquia (ano → trimestre → mês; fabricante → modelo) |
+
+- **DDL** ([`sql/ddl/`](sql/ddl/)): tabelas com tipos, PK, FK, `UNIQUE`, `CHECK` e colunas calculadas (`afr_pct`, `temperatura_media`). Dimensões com chave substituta (`sk_*`), fatos com PK no grão. Scripts idempotentes (`IF OBJECT_ID(...) IS NULL`).
+- **Carga:** uma atividade Copy do Synapse Pipelines leva o Parquet da gold para tabelas de staging (`stg.*`), com os mesmos nomes de coluna.
+- **DML** ([`sql/dml/`](sql/dml/)): `MERGE` da staging para dimensões e fatos, trocando nomes e códigos pelas chaves substitutas; `dim_calendario` é gerada no banco e `dim_datacenter` vem de `config/datacenters.json`. Cada carga valida a staging (vazia, chave repetida, código sem dimensão) no mesmo lote do `MERGE`; se falhar, nada é gravado.
+- **AFR:** `100 × falhas / (dias_disco / 365)`. Ao reagregar, as consultas somam `falhas` e `dias_disco` e recalculam; nunca tiram média de AFR.
+
+Ordem de execução completa (gold, DDL, cópia e DML): [`sql/README.md`](sql/README.md).
 
 ## Operações OLAP
 

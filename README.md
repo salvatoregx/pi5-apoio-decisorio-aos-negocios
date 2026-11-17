@@ -98,7 +98,7 @@ Os scripts da camada Silver ficam em [`sql/transformacao/silver/`](sql/transform
 4. **`04_qualidade_silver.sql`**: Script de auditoria parametrizado por `ano_mes` para apuração de contagens, discos distintos, falhas e indicadores de anomalias/nulos para conferência.
 5. **`05_view_silver_disco_dia_enriquecida.sql`**: View com enriquecimento analítico:
    - **Manutenção Preditiva:** Flags para os 5 atributos SMART preditores da Backblaze (`smart_5`, `smart_187`, `smart_188`, `smart_197`, `smart_198`) e flag composta `flg_risco_falha_iminente`.
-   - **Segmentações operacionais:** Faixas de temperatura de 5 em 5 °C (com alerta de estresse térmico $\ge 40$ °C), faixas de idade em anos e flag para registros sem datacenter (localização só existe a partir de 2023).
+   - **Segmentações operacionais:** Faixas de temperatura de 5 em 5 °C e faixas de idade em anos, com rótulos neutros e colunas de ordem (`ordem_faixa_temperatura`, `ordem_faixa_idade`) para ordenar nas consultas OLAP; flag de temperatura $\ge 40$ °C e flag para registros sem datacenter (localização só existe a partir de 2023).
 6. **`06_auditoria_regras_silver.sql`**: Consultas de auditoria, para rodar à mão, com 4 testes de integridade (volumetria e descarte de duplicatas, monitoramento de marcas desconhecidas, validação dos limites de saneamento e comparação entre alertas preditivos e falhas reais).
 
 > A camada Gold (agregações do modelo dimensional via CETAS no Synapse) fica em `sql/transformacao/gold/`, a cargo da frente do modelo dimensional.

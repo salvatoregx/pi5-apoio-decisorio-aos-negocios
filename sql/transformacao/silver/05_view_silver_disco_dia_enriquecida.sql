@@ -50,32 +50,54 @@ SELECT
     -- ========================================================================
     -- Faixas Operacionais para Análise Dimensional / OLAP
     -- ========================================================================
-    -- Faixas de temperatura operacional (intervalos de 5 °C)
+    -- Faixas de temperatura (intervalos de 5 °C). Os rótulos são neutros: qual faixa tem
+    -- mais falhas é uma conclusão da análise OLAP, não da limpeza. A coluna de ordem
+    -- permite ordenar as faixas nas consultas (o texto não ordena corretamente).
     CASE 
         WHEN s.temperatura_c IS NULL THEN 'Não informada'
-        WHEN s.temperatura_c < 20 THEN '< 20°C (Baixa)'
-        WHEN s.temperatura_c BETWEEN 20 AND 24 THEN '20 a 24°C'
-        WHEN s.temperatura_c BETWEEN 25 AND 29 THEN '25 a 29°C (Ideal)'
-        WHEN s.temperatura_c BETWEEN 30 AND 34 THEN '30 a 34°C'
-        WHEN s.temperatura_c BETWEEN 35 AND 39 THEN '35 a 39°C (Elevada)'
-        WHEN s.temperatura_c BETWEEN 40 AND 44 THEN '40 a 44°C (Crítica)'
-        ELSE '>= 45°C (Perigo)'
+        WHEN s.temperatura_c < 20 THEN '< 20 °C'
+        WHEN s.temperatura_c < 25 THEN '20 a 24 °C'
+        WHEN s.temperatura_c < 30 THEN '25 a 29 °C'
+        WHEN s.temperatura_c < 35 THEN '30 a 34 °C'
+        WHEN s.temperatura_c < 40 THEN '35 a 39 °C'
+        WHEN s.temperatura_c < 45 THEN '40 a 44 °C'
+        ELSE '>= 45 °C'
     END AS faixa_temperatura,
+    CASE 
+        WHEN s.temperatura_c IS NULL THEN NULL
+        WHEN s.temperatura_c < 20 THEN 1
+        WHEN s.temperatura_c < 25 THEN 2
+        WHEN s.temperatura_c < 30 THEN 3
+        WHEN s.temperatura_c < 35 THEN 4
+        WHEN s.temperatura_c < 40 THEN 5
+        WHEN s.temperatura_c < 45 THEN 6
+        ELSE 7
+    END AS ordem_faixa_temperatura,
 
-    -- Alerta de estresse térmico (acima de 40 °C é crítico em datacenter)
+    -- Temperatura a partir de 40 °C. Limiar de análise: a exploração da 1ª etapa
+    -- (2 meses) mostrou AFR acima da média a partir de 40 °C e bem maior a partir de 45 °C.
     CASE WHEN s.temperatura_c >= 40 THEN 1 ELSE 0 END AS flg_estresse_termico,
 
-    -- Faixas de idade de uso (anos de operação)
+    -- Faixas de idade de uso (anos de operação, a partir do SMART 9)
     CASE 
         WHEN s.idade_anos IS NULL THEN 'Desconhecida'
-        WHEN s.idade_anos < 1.0 THEN '< 1 ano (Novo)'
-        WHEN s.idade_anos BETWEEN 1.0 AND 2.99 THEN '1 a 2 anos'
-        WHEN s.idade_anos BETWEEN 3.0 AND 4.99 THEN '3 a 4 anos (Maturo)'
-        WHEN s.idade_anos BETWEEN 5.0 AND 6.99 THEN '5 a 6 anos (Fim de ciclo)'
-        ELSE '>= 7 anos (Crítico)'
+        WHEN s.idade_anos < 1 THEN '< 1 ano'
+        WHEN s.idade_anos < 3 THEN '1 a 2 anos'
+        WHEN s.idade_anos < 5 THEN '3 a 4 anos'
+        WHEN s.idade_anos < 7 THEN '5 a 6 anos'
+        ELSE '>= 7 anos'
     END AS faixa_idade,
+    CASE 
+        WHEN s.idade_anos IS NULL THEN NULL
+        WHEN s.idade_anos < 1 THEN 1
+        WHEN s.idade_anos < 3 THEN 2
+        WHEN s.idade_anos < 5 THEN 3
+        WHEN s.idade_anos < 7 THEN 4
+        ELSE 5
+    END AS ordem_faixa_idade,
 
-    -- Indicador de localização imputada vs observada
+    -- Registro sem datacenter (a localização só existe a partir de 2023; a imputação pelo
+    -- último datacenter conhecido do disco fica para a gold)
     CASE WHEN s.datacenter IS NULL THEN 1 ELSE 0 END AS flg_sem_localizacao_original
 
 FROM silver.disco_dia AS s;

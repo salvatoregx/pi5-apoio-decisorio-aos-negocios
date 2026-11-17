@@ -40,6 +40,10 @@ Regras aplicadas:
   `dias_disco` e recalcular.
 - **Datacenter efetivo** = `COALESCE(datacenter do dia, último datacenter conhecido do disco)`; sem nenhum,
   `desconhecido`. As fatos guardam quantos dias-disco foram imputados.
+- **Datacenter vazio na fonte:** parte das linhas da Backblaze traz o datacenter como texto vazio (`''`), não
+  como nulo. A gold só imputa o nulo; na carga do DW o vazio vai para `desconhecido`. Na carga de 2026-11 foram
+  ~16,3 milhões de dias-disco (3,3%). O AFR por modelo e fabricante não é afetado; a análise por datacenter
+  fica com essa fatia sem local.
 - **Chaves:** dimensões com chave substituta (`sk_*`, `IDENTITY`) e chave natural `UNIQUE`; o `MERGE` pela
   chave natural mantém a `sk_*` estável entre cargas. Fatos com PK no grão e FK para as dimensões.
 - **Idempotência:** DDL com `IF OBJECT_ID(...) IS NULL`; DML com `MERGE` (as fatos também apagam o que saiu

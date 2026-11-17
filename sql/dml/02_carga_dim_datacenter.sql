@@ -60,7 +60,8 @@ FROM (
     UNION
     SELECT datacenter FROM stg.fato_temperatura_dc_dia
 ) AS n
-WHERE NOT EXISTS (SELECT 1 FROM dbo.dim_datacenter AS d WHERE d.codigo_datacenter = n.codigo);
+WHERE NULLIF(n.codigo, '') IS NOT NULL  -- vazio vai para 'desconhecido' nas cargas
+  AND NOT EXISTS (SELECT 1 FROM dbo.dim_datacenter AS d WHERE d.codigo_datacenter = n.codigo);
 GO
 
 SELECT * FROM dbo.dim_datacenter ORDER BY sk_datacenter;

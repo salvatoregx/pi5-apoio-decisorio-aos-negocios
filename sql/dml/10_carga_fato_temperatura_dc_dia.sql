@@ -14,6 +14,10 @@
 --   das dimensões (01 a 05). Idempotente: MERGE pela chave do grão (dia, datacenter, mídia).
 --
 -- temperatura_media é coluna calculada na tabela: não é carregada.
+--
+-- Datacenter vazio (''): parte dos dados da fonte traz o datacenter como texto
+--   vazio, que a gold não imputou. Na carga ele vai para o membro 'desconhecido'
+--   (cerca de 3% dos dias-disco). Limitação registrada em sql/README.md.
 -- ============================================================================
 
 IF NOT EXISTS (SELECT 1 FROM stg.fato_temperatura_dc_dia)
@@ -23,7 +27,7 @@ IF EXISTS (
     SELECT 1
     FROM stg.fato_temperatura_dc_dia AS f
     LEFT JOIN dbo.dim_calendario AS c ON c.data = f.data
-    LEFT JOIN dbo.dim_datacenter AS dc ON dc.codigo_datacenter = f.datacenter
+    LEFT JOIN dbo.dim_datacenter AS dc ON dc.codigo_datacenter = COALESCE(NULLIF(f.datacenter, ''), 'desconhecido')
     WHERE c.id_data IS NULL OR dc.sk_datacenter IS NULL
 )
     THROW 50042, 'stg.fato_temperatura_dc_dia tem dia ou datacenter sem correspondente nas dimensões.', 1;
@@ -31,24 +35,47 @@ IF EXISTS (
 -- As verificações acima ficam no mesmo lote do MERGE: se uma falhar, nada é gravado.
 MERGE dbo.fato_temperatura_dc_dia AS alvo
 USING (
+    -- GROUP BY: datacenter vazio e 'desconhecido' caem na mesma chave e são somados.
+    -- p50 e p95 não se somam: na linha combinada ficam os do grupo com mais leituras
+    -- (aproximação que só afeta o membro 'desconhecido').
     SELECT
-        c.id_data,
-        dc.sk_datacenter,
-        f.tipo_midia,
-        CAST(f.discos AS INT) AS discos,
-        CAST(f.discos_imputados AS INT) AS discos_imputados,
-        CAST(f.capacidade_tb_total AS DECIMAL(12, 1)) AS capacidade_tb_total,
-        f.soma_temperatura,
-        CAST(f.contagem_temperatura AS INT) AS contagem_temperatura,
-        CAST(f.temperatura_p50 AS SMALLINT) AS temperatura_p50,
-        CAST(f.temperatura_p95 AS SMALLINT) AS temperatura_p95,
-        CAST(f.temperatura_max AS SMALLINT) AS temperatura_max,
-        CAST(f.falhas AS INT) AS falhas
-    FROM stg.fato_temperatura_dc_dia AS f
-    JOIN dbo.dim_calendario AS c
-        ON c.data = f.data
-    JOIN dbo.dim_datacenter AS dc
-        ON dc.codigo_datacenter = f.datacenter
+        id_data,
+        sk_datacenter,
+        tipo_midia,
+        CAST(SUM(discos) AS INT) AS discos,
+        CAST(SUM(discos_imputados) AS INT) AS discos_imputados,
+        CAST(SUM(capacidade_tb_total) AS DECIMAL(12, 1)) AS capacidade_tb_total,
+        SUM(soma_temperatura) AS soma_temperatura,
+        CAST(SUM(contagem_temperatura) AS INT) AS contagem_temperatura,
+        CAST(MAX(CASE WHEN ordem = 1 THEN temperatura_p50 END) AS SMALLINT) AS temperatura_p50,
+        CAST(MAX(CASE WHEN ordem = 1 THEN temperatura_p95 END) AS SMALLINT) AS temperatura_p95,
+        CAST(MAX(temperatura_max) AS SMALLINT) AS temperatura_max,
+        CAST(SUM(falhas) AS INT) AS falhas
+    FROM (
+        SELECT
+            c.id_data,
+            dc.sk_datacenter,
+            f.tipo_midia,
+            f.discos,
+            f.discos_imputados,
+            f.capacidade_tb_total,
+            f.soma_temperatura,
+            f.contagem_temperatura,
+            f.temperatura_p50,
+            f.temperatura_p95,
+            f.temperatura_max,
+            f.falhas,
+            ROW_NUMBER() OVER (
+                PARTITION BY c.id_data, dc.sk_datacenter, f.tipo_midia
+                ORDER BY f.contagem_temperatura DESC
+            ) AS ordem
+        FROM stg.fato_temperatura_dc_dia AS f
+        JOIN dbo.dim_calendario AS c
+            ON c.data = f.data
+        JOIN dbo.dim_datacenter AS dc
+            ON dc.codigo_datacenter = COALESCE(NULLIF(f.datacenter, ''), 'desconhecido')
+    ) AS x
+    GROUP BY id_data, sk_datacenter, tipo_midia
 ) AS origem
     ON alvo.id_data = origem.id_data
    AND alvo.sk_datacenter = origem.sk_datacenter

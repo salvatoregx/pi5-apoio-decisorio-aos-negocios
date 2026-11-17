@@ -14,6 +14,10 @@
 --   das dimensões (01 a 05). Idempotente: MERGE pela chave do grão (mês, modelo, datacenter).
 --
 -- afr_pct e temperatura_media são colunas calculadas na tabela: não são carregadas.
+--
+-- Datacenter vazio (''): parte dos dados da fonte traz o datacenter como texto
+--   vazio, que a gold não imputou. Na carga ele vai para o membro 'desconhecido'
+--   (cerca de 3% dos dias-disco). Limitação registrada em sql/README.md.
 -- ============================================================================
 
 IF NOT EXISTS (SELECT 1 FROM stg.fato_confiabilidade_mensal)
@@ -24,7 +28,7 @@ IF EXISTS (
     FROM stg.fato_confiabilidade_mensal AS f
     LEFT JOIN dbo.dim_calendario AS c ON c.id_data = CAST(REPLACE(f.ano_mes, '-', '') + '01' AS INT)
     LEFT JOIN dbo.dim_modelo AS m ON m.modelo = f.modelo
-    LEFT JOIN dbo.dim_datacenter AS dc ON dc.codigo_datacenter = f.datacenter
+    LEFT JOIN dbo.dim_datacenter AS dc ON dc.codigo_datacenter = COALESCE(NULLIF(f.datacenter, ''), 'desconhecido')
     WHERE c.id_data IS NULL OR m.sk_modelo IS NULL OR dc.sk_datacenter IS NULL
 )
     THROW 50022, 'stg.fato_confiabilidade_mensal tem mês, modelo ou datacenter sem correspondente nas dimensões.', 1;
@@ -32,24 +36,28 @@ IF EXISTS (
 -- As verificações acima ficam no mesmo lote do MERGE: se uma falhar, nada é gravado.
 MERGE dbo.fato_confiabilidade_mensal AS alvo
 USING (
+    -- GROUP BY: datacenter vazio e 'desconhecido' caem na mesma chave e são somados.
+    -- Os discos dos dois grupos são distintos (disco com vazio tem último datacenter
+    -- não nulo), então somar discos_distintos continua exato.
     SELECT
         c.id_data AS id_data_mes,
         m.sk_modelo,
         dc.sk_datacenter,
-        f.dias_disco,
-        f.dias_disco_imputados,
-        CAST(f.falhas AS INT) AS falhas,
-        CAST(f.discos_distintos AS INT) AS discos_distintos,
-        CAST(f.tb_dias AS DECIMAL(18, 1)) AS tb_dias,
-        f.soma_temperatura,
-        f.contagem_temperatura
+        SUM(f.dias_disco) AS dias_disco,
+        SUM(f.dias_disco_imputados) AS dias_disco_imputados,
+        CAST(SUM(f.falhas) AS INT) AS falhas,
+        CAST(SUM(f.discos_distintos) AS INT) AS discos_distintos,
+        CAST(SUM(f.tb_dias) AS DECIMAL(18, 1)) AS tb_dias,
+        SUM(f.soma_temperatura) AS soma_temperatura,
+        SUM(f.contagem_temperatura) AS contagem_temperatura
     FROM stg.fato_confiabilidade_mensal AS f
     JOIN dbo.dim_calendario AS c
         ON c.id_data = CAST(REPLACE(f.ano_mes, '-', '') + '01' AS INT)
     JOIN dbo.dim_modelo AS m
         ON m.modelo = f.modelo
     JOIN dbo.dim_datacenter AS dc
-        ON dc.codigo_datacenter = f.datacenter
+        ON dc.codigo_datacenter = COALESCE(NULLIF(f.datacenter, ''), 'desconhecido')
+    GROUP BY c.id_data, m.sk_modelo, dc.sk_datacenter
 ) AS origem
     ON alvo.id_data_mes = origem.id_data_mes
    AND alvo.sk_modelo = origem.sk_modelo

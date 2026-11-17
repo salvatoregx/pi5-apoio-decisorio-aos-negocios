@@ -4,7 +4,8 @@
 -- Objetivo:
 --   Carregar dim_disco a partir da staging, trocando o nome do modelo e o código
 --   do último datacenter pelas chaves substitutas das dimensões. Disco sem
---   nenhum datacenter conhecido aponta para o membro 'desconhecido'.
+--   nenhum datacenter conhecido aponta para o membro 'desconhecido'; o mesmo vale
+--   para datacenter vazio (''), que vem assim em parte dos dados da fonte.
 --
 -- Origem dos dados:
 --   stg.disco (cópia de lake/gold/disco/), dbo.dim_modelo e dbo.dim_datacenter.
@@ -27,7 +28,7 @@ IF EXISTS (
     SELECT 1
     FROM stg.disco AS d
     LEFT JOIN dbo.dim_modelo AS m ON m.modelo = d.modelo
-    LEFT JOIN dbo.dim_datacenter AS dc ON dc.codigo_datacenter = COALESCE(d.ultimo_datacenter, 'desconhecido')
+    LEFT JOIN dbo.dim_datacenter AS dc ON dc.codigo_datacenter = COALESCE(NULLIF(d.ultimo_datacenter, ''), 'desconhecido')
     WHERE m.sk_modelo IS NULL OR dc.sk_datacenter IS NULL
 )
     THROW 50013, 'stg.disco tem modelo ou datacenter sem correspondente nas dimensões: rode as cargas 02 e 05 antes.', 1;
@@ -59,7 +60,7 @@ USING (
     JOIN dbo.dim_modelo AS m
         ON m.modelo = d.modelo
     JOIN dbo.dim_datacenter AS dc
-        ON dc.codigo_datacenter = COALESCE(d.ultimo_datacenter, 'desconhecido')
+        ON dc.codigo_datacenter = COALESCE(NULLIF(d.ultimo_datacenter, ''), 'desconhecido')
 ) AS origem
     ON alvo.numero_serie = origem.numero_serie
 WHEN MATCHED THEN UPDATE SET

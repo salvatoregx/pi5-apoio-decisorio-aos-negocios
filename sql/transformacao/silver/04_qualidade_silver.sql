@@ -26,9 +26,13 @@ SELECT
     SUM(CAST(falha AS BIGINT)) AS total_falhas,
 
     -- Indicadores de qualidade
+    -- Ausente = o disco não reportou o atributo; inválida = reportou um valor fora da faixa
+    -- aceita e a silver o anulou. A diferença ajuda a explicar a qualidade da fonte.
     SUM(CASE WHEN capacidade_bytes IS NULL THEN 1 ELSE 0 END) AS qtd_capacidade_invalida_ou_nula,
-    SUM(CASE WHEN temperatura_c IS NULL THEN 1 ELSE 0 END) AS qtd_temperatura_ausente_ou_invalida,
-    SUM(CASE WHEN horas_ligado IS NULL THEN 1 ELSE 0 END) AS qtd_horas_ligado_ausente_ou_invalida,
+    SUM(CASE WHEN smart_194_temperatura_bruto IS NULL THEN 1 ELSE 0 END) AS qtd_temperatura_ausente,
+    SUM(CASE WHEN temperatura_c IS NULL AND smart_194_temperatura_bruto IS NOT NULL THEN 1 ELSE 0 END) AS qtd_temperatura_invalida,
+    SUM(CASE WHEN smart_009_horas_ligado_bruto IS NULL THEN 1 ELSE 0 END) AS qtd_horas_ligado_ausente,
+    SUM(CASE WHEN horas_ligado IS NULL AND smart_009_horas_ligado_bruto IS NOT NULL THEN 1 ELSE 0 END) AS qtd_horas_ligado_invalida,
     SUM(CASE WHEN datacenter IS NULL THEN 1 ELSE 0 END) AS qtd_sem_datacenter,
     SUM(CASE WHEN fabricante = 'Outro/Desconhecido' THEN 1 ELSE 0 END) AS qtd_fabricante_desconhecido,
 

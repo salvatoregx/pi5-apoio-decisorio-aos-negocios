@@ -6,7 +6,7 @@
 --   de transformação da camada Silver em relação à Bronze:
 --   1. Conferência volumétrica (Bronze vs Silver) e garantia de deduplicação;
 --   2. Verificação de fabricantes não mapeados ('Outro/Desconhecido');
---   3. Validação dos limites de saneamento (capacidades <= 0, temperaturas fora de 1-100, etc.);
+--   3. Saneamento conferido contra a bronze (capacidade, temperatura e horas ligado);
 --   4. Relação entre SMART preditores e falha real observada.
 --
 -- Dica de custo no Synapse Serverless:
@@ -51,17 +51,38 @@ GROUP BY modelo
 ORDER BY ocorrencias DESC;
 
 -- ============================================================================
--- Teste 3: Auditoria dos limites de saneamento (deve retornar 0 para todas as anomalias)
+-- Teste 3: Saneamento conferido contra a bronze
+--   Conta na bronze os valores que as regras devem anular e, na silver, os valores
+--   anulados. Cada par deve ser igual (pode diferir só pelas duplicatas removidas,
+--   ver teste 1). Diferença indica regra aplicada de forma errada na view.
 -- ============================================================================
 SELECT 
-    '3. Integridade do Saneamento' AS teste,
-    SUM(CASE WHEN capacidade_bytes <= 0 THEN 1 ELSE 0 END) AS violacoes_capacidade_negativa_ou_zero,
-    SUM(CASE WHEN temperatura_c NOT BETWEEN 1 AND 100 THEN 1 ELSE 0 END) AS violacoes_temperatura_fora_faixa,
-    SUM(CASE WHEN horas_ligado NOT BETWEEN 0 AND 200000 THEN 1 ELSE 0 END) AS violacoes_horas_fora_faixa,
-    SUM(CASE WHEN tipo_midia NOT IN ('SSD', 'HDD') THEN 1 ELSE 0 END) AS violacoes_midia_invalida,
-    SUM(CASE WHEN funcao_disco NOT IN ('boot', 'dados') THEN 1 ELSE 0 END) AS violacoes_funcao_invalida
-FROM silver.disco_dia
-WHERE ano_mes = @mes_auditoria;
+    '3. Saneamento bronze x silver' AS teste,
+    b.capacidade_invalida AS bronze_capacidade_invalida,
+    s.capacidade_nula AS silver_capacidade_nula,
+    b.temperatura_invalida AS bronze_temperatura_invalida,
+    s.temperatura_anulada AS silver_temperatura_anulada,
+    b.horas_invalidas AS bronze_horas_invalidas,
+    s.horas_anuladas AS silver_horas_anuladas
+FROM (
+    SELECT
+        SUM(CASE WHEN capacity_bytes IS NULL OR capacity_bytes <= 0 THEN 1 ELSE 0 END) AS capacidade_invalida,
+        SUM(CASE WHEN smart_194_raw IS NOT NULL
+                  AND smart_194_raw NOT BETWEEN 1 AND 100
+                  AND NOT (smart_194_raw > 255 AND (smart_194_raw & 255) BETWEEN 1 AND 100)
+                 THEN 1 ELSE 0 END) AS temperatura_invalida,
+        SUM(CASE WHEN smart_9_raw NOT BETWEEN 0 AND 200000 THEN 1 ELSE 0 END) AS horas_invalidas
+    FROM bronze.drivestats
+    WHERE ano_mes = @mes_auditoria
+) AS b
+CROSS JOIN (
+    SELECT
+        SUM(CASE WHEN capacidade_bytes IS NULL THEN 1 ELSE 0 END) AS capacidade_nula,
+        SUM(CASE WHEN temperatura_c IS NULL AND smart_194_temperatura_bruto IS NOT NULL THEN 1 ELSE 0 END) AS temperatura_anulada,
+        SUM(CASE WHEN horas_ligado IS NULL AND smart_009_horas_ligado_bruto IS NOT NULL THEN 1 ELSE 0 END) AS horas_anuladas
+    FROM silver.disco_dia
+    WHERE ano_mes = @mes_auditoria
+) AS s;
 
 -- ============================================================================
 -- Teste 4: Correlação de Manutenção Preditiva (SMART Preditores x Falhas)

@@ -11,7 +11,10 @@
 --   - Os demais comandos rodam conectados no banco 'pi5'.
 --
 -- Observações importantes:
---   1. Substitua '<SENHA_FORTE>' por uma senha segura ao executar (não versione senhas).
+--   1. A master key exige uma senha, que não fica no repositório: o bloco dela está
+--      comentado de propósito. Descomente, troque '<SENHA_FORTE>' por uma senha forte,
+--      guarde-a fora do repositório e execute uma única vez. Sem a master key, a
+--      criação da credencial abaixo falha, o que evita rodar o script sem esse ajuste.
 --   2. A autenticação com o lake utiliza a Identidade Gerenciada (Managed Identity)
 --      do workspace do Synapse, que já possui permissão de leitura/escrita no ADLS Gen2.
 -- ============================================================================
@@ -23,12 +26,13 @@
 -- 2. Conectar no banco 'pi5' para executar os passos abaixo:
 -- USE pi5;
 
--- Criação da Master Key para proteção de credenciais com escopo de banco
-IF NOT EXISTS (SELECT * FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##')
-BEGIN
-    CREATE MASTER KEY ENCRYPTION BY PASSWORD = '<SENHA_FORTE>';
-END;
-GO
+-- Criação da Master Key para proteção de credenciais com escopo de banco.
+-- Comentado de propósito: ver a observação 1 no cabeçalho.
+-- IF NOT EXISTS (SELECT * FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##')
+-- BEGIN
+--     CREATE MASTER KEY ENCRYPTION BY PASSWORD = '<SENHA_FORTE>';
+-- END;
+-- GO
 
 -- Credencial com escopo de banco apontando para a Managed Identity do workspace
 IF NOT EXISTS (SELECT * FROM sys.database_scoped_credentials WHERE name = 'identidade_workspace')

@@ -81,7 +81,23 @@ lake/bronze/drivestats/
 
 ## Transformação (T)
 
-> A cargo da frente de transformação: regras da silver, agregações da gold e scripts em `sql/transformacao/`.
+A camada de transformação processa os dados brutos da camada bronze, aplicando limpeza, deduplicação, padronização e saneamento métrico no Azure Synapse Analytics (pool SQL Serverless).
+
+### Camada Silver (`silver.disco_dia`)
+
+Os scripts da camada Silver ficam em [`sql/transformacao/silver/`](sql/transformacao/silver/) e operam como views lógicas sobre o Data Lake, garantindo zero redundância de armazenamento para os ~493 milhões de registros:
+
+1. **`01_preparacao_ambiente.sql`**: Configura credenciais com *Managed Identity*, External Data Source (`lake`), External File Format (`PARQUET`) e esquemas lógicos (`bronze`, `silver`, `gold`).
+2. **`02_view_bronze_drivestats.sql`**: Mapeia os arquivos Parquet da bronze expondo a partição virtual `ano_mes` via `filepath(1)`, viabilizando a poda de partições (*partition pruning*) e reduzindo custos de leitura no Serverless.
+3. **`03_view_silver_disco_dia.sql`**: View consolidada da Silver com granularidade de **1 linha por disco por dia**:
+   - **Deduplicação idempotente:** Mantém apenas um registro por disco e dia (`ROW_NUMBER() OVER (PARTITION BY ano_mes, _serie, date ORDER BY failure DESC) = 1`), priorizando registros de falha.
+   - **Padronização de modelo e fabricante:** Prefixagem de modelos `WUH%` com `WDC ` (unificando Western Digital/HGST) e regras ordenadas de mapeamento de marcas (`Seagate`, `Western Digital`, `Toshiba`, `Micron`, `Samsung`, `Dell BOSS`, etc.).
+   - **Mídia e função:** Classificação em `SSD` vs `HDD` por padrões de modelo, e atribuição de `funcao_disco` em `boot` (se SSD ou capacidade < 2 TB) ou `dados`.
+   - **Saneamento métrico:** Capacidades $\le 0$ tratadas como nulas e conversão para `capacidade_tb`; correção de temperatura do SMART 194 (extração do byte inferior `& 255` em leituras compostas $> 255$ da Seagate e filtro 1–100 °C); filtro de horas ligado do SMART 9 (0–200.000 h) e cálculo da `idade_anos`.
+   - **Tradução e catálogo SMART:** Renomeação padronizada em português dos 44 atributos SMART com cobertura $\ge 1\%$ (`smart_XXX_<nome>_bruto` e `_normalizado`).
+4. **`04_qualidade_silver.sql`**: Script de auditoria parametrizado por `ano_mes` para apuração de contagens, discos distintos, falhas e indicadores de anomalias/nulos para conferência.
+
+> A camada Gold (agregações dimensionais via CETAS no Synapse) e a carga para o Azure SQL DW estão estruturadas em `sql/transformacao/gold/`.
 
 ## Data warehouse: DDL e DML
 

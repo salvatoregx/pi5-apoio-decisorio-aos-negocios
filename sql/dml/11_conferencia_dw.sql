@@ -12,7 +12,10 @@
 --   Azure SQL Database, banco 'dw', depois das cargas 01 a 10.
 --
 -- Resultado esperado:
---   - Consulta 1: diferenca = 0 em todas as linhas.
+--   - Consulta 1: diferenca = 0 nas dimensões e em fato_confiabilidade_faixas. Em
+--     fato_confiabilidade_mensal e fato_temperatura_dc_dia o DW tem menos linhas que a
+--     staging, porque a carga junta o datacenter vazio da fonte e o 'desconhecido' na
+--     mesma chave; os totais de dias-disco e falhas (consulta 2) não mudam.
 --   - Consulta 2: dias_disco e falhas iguais nas três fatos e em dim_disco
 --     (falhas de dim_disco conta discos que falharam; pode ficar um pouco abaixo
 --     se algum disco tiver mais de uma falha registrada).

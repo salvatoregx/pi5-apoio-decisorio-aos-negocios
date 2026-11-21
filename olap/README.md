@@ -7,4 +7,5 @@ Operações OLAP sobre o DW (Azure SQL Database).
   e o `99` remove views antigas.
 - `evidencias/`: resultado de cada consulta (CSV), com o mesmo nome do script.
 
-Operações esperadas: roll-up, drill-down, slice, dice e pivot.
+Operações implementadas: roll-up (`01`), drill-down (`02`), slice (`03`), dice (`04`) e pivot (`05`).
+O `06` e o `07` são análises complementares (temperatura por datacenter e SMART × falha).

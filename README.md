@@ -6,6 +6,21 @@ registros diários de SMART e falhas de cerca de 350 mil discos, usados para ana
 confiabilidade por modelo e fabricante, fatores de risco (temperatura, idade, localização)
 e sinais de falha iminente.
 
+**Vídeo demonstrativo (1 min):** [docs/video_PI5_grupo2.mp4](docs/video_PI5_grupo2.mp4)
+
+## Perguntas de negócio
+
+As perguntas resumem as atividades de apoio decisório definidas na 1ª etapa. O modelo dimensional foi
+derivado delas, e as operações OLAP respondem a elas.
+
+| # | Pergunta | Decisão apoiada | Onde está no DW | Consulta OLAP |
+|---|---|---|---|---|
+| 1 | **Confiabilidade:** qual modelo ou fabricante falha menos? | especificação dos próximos lotes de compra | `fato_confiabilidade_mensal` × `dim_modelo` (AFR) | [01](olap/consultas/01_rollup_afr_fabricante_modelo.sql), [05](olap/consultas/05_pivot_afr_fabricante_ano.sql) |
+| 2 | **Fatores de risco:** temperatura, idade e localização influenciam as falhas? | ajuste de refrigeração e prioridades de infraestrutura | `fato_confiabilidade_faixas` (faixas de idade e de temperatura), `fato_confiabilidade_mensal` × `dim_datacenter` | [03](olap/consultas/03_slice_afr_temperatura_2025.sql) |
+| 3 | **Manutenção preditiva:** quais atributos SMART sinalizam falha iminente? | fila de substituição preventiva | `dim_disco` (máximos dos SMART 5, 187, 188, 197 e 198 e situação do disco) | [07](olap/consultas/07_smart_preditores_falha.sql) |
+| 4 | **Setorização física:** há datacenter com mais falhas ou mais quente? | investigação de causas locais | `fato_temperatura_dc_dia` (p50, p95 e máximo por dia), `fato_confiabilidade_mensal` × `dim_datacenter` | [06](olap/consultas/06_temperatura_datacenter.sql) |
+| 5 | **Vida útil e substituição:** como o AFR evolui com a idade do disco? | planejamento de reposição | `fato_confiabilidade_faixas` × `dim_faixa_idade` | [02](olap/consultas/02_drilldown_afr_ano_trimestre_mes.sql), [04](olap/consultas/04_dice_afr_fabricante_idade.sql) |
+
 ## Arquitetura
 
 ```
@@ -21,6 +36,8 @@ ADLS Gen2  lake/silver/  →  lake/gold/  dados limpos → agregados do modelo d
    ▼
 Azure SQL Database  dw                   DDL, DML e operações OLAP
 ```
+
+![Arquitetura da solução: fonte Backblaze, contêiner com Python e DuckDB, data lake (bronze), Synapse (silver e gold) e Azure SQL (modelo estrela)](docs/arquitetura.png)
 
 Todos os recursos ficam no grupo `rg-pi5`, região Brazil South, numa assinatura Azure for Students.
 
@@ -149,9 +166,97 @@ erDiagram
 
 Ordem de execução completa (gold, DDL, cópia e DML): [`sql/README.md`](sql/README.md).
 
+## Conferência entre as camadas
+
+Executada em 20/11/2026 com os scripts [`90_conferencia_gold.sql`](sql/transformacao/gold/90_conferencia_gold.sql)
+(Synapse) e [`11_conferencia_dw.sql`](sql/dml/11_conferencia_dw.sql) (Azure SQL). Resultados completos,
+inclusive mês a mês: [`docs/conferencia_camadas.md`](docs/conferencia_camadas.md).
+
+| Camada | Tabela | Dias-disco | Falhas |
+|---|---|---:|---:|
+| bronze | `bronze.drivestats` | 493.160.806 | 20.310 |
+| gold | `gold.disco_mes` | 493.160.806 | 20.310 |
+| gold | `gold.fato_confiabilidade_mensal` | 493.160.806 | 20.310 |
+| gold | `gold.fato_confiabilidade_faixas` | 493.160.806 | 20.310 |
+| gold | `gold.fato_temperatura_dc_dia` | 493.160.806 | 20.310 |
+| DW | `dbo.fato_confiabilidade_mensal` | 493.160.806 | 20.310 |
+| DW | `dbo.fato_confiabilidade_faixas` | 493.160.806 | 20.310 |
+| DW | `dbo.fato_temperatura_dc_dia` | 493.160.806 | 20.310 |
+
+- **Nenhuma linha perdida ou duplicada** da bronze até o DW. Como a gold é calculada a partir da silver,
+  a igualdade também mostra que a deduplicação da silver não encontrou duplicatas.
+- **Mês a mês:** nos 60 meses, a diferença entre a bronze e a fato mensal é zero.
+- **`dim_disco`:** 20.271 discos com falha para 20.310 registros de falha. A diferença (39) corresponde a
+  discos com mais de uma falha registrada, como prevê o script de conferência.
+- **Staging × DW:** dimensões e `fato_confiabilidade_faixas` têm a mesma contagem de linhas. A
+  `fato_confiabilidade_mensal` (10.763 → 10.366 linhas) e a `fato_temperatura_dc_dia` (20.180 → 18.722)
+  ficam com menos linhas no DW porque a carga junta o datacenter vazio da fonte e o `desconhecido` na
+  mesma chave (`GROUP BY` antes do `MERGE`). Os totais de dias-disco e falhas não mudam.
+
 ## Operações OLAP
 
-> A cargo da frente de OLAP: consultas em `olap/consultas/` e evidências em `olap/evidencias/`.
+Consultas em [`olap/consultas/`](olap/consultas/) e resultados em [`olap/evidencias/`](olap/evidencias/),
+executados no banco `dw`. Regras comuns: só discos de dados (`funcao_disco = 'dados'`, os discos de boot
+ficam de fora), AFR sempre recalculado a partir das somas e, nas comparações por modelo, corte de
+100 mil dias-disco. A view [`vw_confiabilidade_estrela`](olap/consultas/00_view_confiabilidade_estrela.sql)
+junta a fato por faixas às dimensões e serve de base para as consultas 03 e 04; a conferência da view
+mostra as mesmas linhas (47.258), falhas (20.310) e dias-disco (493.160.806) da fato.
+
+| Operação | Consulta | Pergunta | O que mostra |
+|---|---|---|---|
+| **Roll-up** (modelo → fabricante → total) | [01](olap/consultas/01_rollup_afr_fabricante_modelo.sql) | 1 | AFR na janela completa: Western Digital 0,61%, Toshiba 1,17%, HGST 1,82%, Seagate 1,92%; frota de dados 1,48%. Dentro de cada fabricante, os modelos variam bastante (Seagate de 0,36% a 6,74%). |
+| **Drill-down** (ano → trimestre → mês) | [02](olap/consultas/02_drilldown_afr_ano_trimestre_mes.sql) | 5 | Seagate: o AFR anual sobe de 1,54% (2021) para 2,44% (2023) e volta a 1,58% em 2025; o pico trimestral é o 2º trimestre de 2023 (3,20%). |
+| **Slice** (ano = 2025) | [03](olap/consultas/03_slice_afr_temperatura_2025.sql) | 2 | AFR por faixa de temperatura: entre 25 °C e 44 °C fica entre 1,18% e 1,38%; os extremos sobem (2,68% abaixo de 20 °C e 2,18% a partir de 45 °C). A faixa "não informada" tem só 220 dias-disco e não permite conclusão. |
+| **Dice** (fabricante × período × idade) | [04](olap/consultas/04_dice_afr_fabricante_idade.sql) | 5 | AFR de Seagate, Toshiba e Western Digital em 2024–2025, nas faixas a partir de 3 anos de idade. |
+| **Pivot** (fabricantes × anos) | [05](olap/consultas/05_pivot_afr_fabricante_ano.sql) | 1 | HGST passa de 0,34% (2021) para 3,79% (2026); Western Digital fica abaixo de 1% em todos os anos; Toshiba é a mais estável (0,89% a 1,25%). |
+| Complementar | [06](olap/consultas/06_temperatura_datacenter.sql) | 4 | De 2023 em diante, `sac2` e `ams5` são os dois datacenters mais quentes em todos os anos (médias entre 33,8 °C e 37,6 °C), e o `sac2` tem o maior AFR em 2024 e 2026. |
+| Complementar | [07](olap/consultas/07_smart_preditores_falha.sql) | 3 | 79,6% dos discos que falharam tinham algum dos cinco SMART preditores acima de zero, contra 9,3% dos que não falharam. |
+
+## Decisões técnicas e limitações
+
+### Decisões
+
+- **ELT em vez de ETL.** O Synapse serverless não lê tabelas Iceberg. A extração com DuckDB converte o
+  snapshot da fonte em Parquet na bronze, e a transformação acontece dentro do lake. Foram avaliadas a
+  cópia direta dos arquivos do Iceberg (perderia o esquema unificado entre os anos e traria colunas quase
+  vazias) e o Spark (cluster cobrado por hora, desproporcional para ~16 GB).
+- **Silver como view, gold materializada.** A silver não duplica os ~493 milhões de linhas; a gold é
+  pequena e consultada muitas vezes, por isso é gravada com CETAS.
+- **Agregações no serverless, só a gold no Azure SQL.** O serverless cobra por volume lido e o Azure SQL
+  usa a oferta gratuita (cota mensal de processamento, pausa automática).
+- **Gold materializada um ano por vez,** para cada consulta ficar abaixo do limite de ~30 min do serverless.
+- **Região Brazil South:** assinaturas Azure for Students só criam Azure SQL em algumas regiões (teste em
+  [`infra/README.md`](infra/README.md)).
+- **Sem senhas:** autenticação só por Microsoft Entra ID e acesso por papel (RBAC).
+- **AFR sempre recalculado a partir das somas** de falhas e dias-disco, nunca por média de AFR.
+
+### Limitações
+
+- **Localização só a partir de 2023.** Antes disso, o datacenter é imputado pelo último local conhecido do
+  disco: 100% dos dias-disco em 2021 e 2022 e 47,2% em 2023. Discos que saíram da frota antes de 2023 ficam
+  como `desconhecido` (3,71% em 2021, 2,21% em 2022, 0,35% em 2023), o que gera viés de sobrevivência.
+  Análises por datacenter são mais confiáveis a partir de 2024.
+- **Datacenter vazio na fonte.** Parte das linhas traz o datacenter como texto vazio; na carga do DW elas
+  vão para `desconhecido` (~16,3 milhões de dias-disco, 3,3%). O AFR por modelo e fabricante não é afetado.
+- **Censura à esquerda e à direita.** Discos que já operavam em 2021-07 têm vida anterior não observada (a
+  idade vem do SMART 9), e a saída de um disco da frota não equivale a falha.
+- **Volume mínimo para o AFR.** Taxas de modelos com pouca observação não são comparáveis; as consultas
+  OLAP aplicam o corte da Backblaze (mais de 100 mil dias-disco).
+- **Catálogo de fabricantes heterogêneo.** Os fabricantes declaram potência por critérios diferentes, e
+  modelos fora do catálogo entram com as especificações nulas.
+- **Itens previstos na 1ª etapa fora desta entrega**, que cobra DDL, DML e OLAP: dimensão de localização
+  física (vault, pod e slot, que seguem disponíveis na silver), score de risco e limiares de alerta
+  calibrados, análise de sobrevivência, dados meteorológicos e painéis.
+
+## Equipe
+
+| Integrante | Frente | Pastas |
+|---|---|---|
+| Salvatore Gasparini Xerri | extração e carga, infraestrutura no Azure, estrutura e revisão do repositório | `src/`, `infra/`, `config/` |
+| Gustavo Aquino de Oliveira | transformação bronze → silver | `sql/transformacao/silver/` |
+| Fernanda Santos da Silva | gold, modelo dimensional, DDL e DML | `sql/transformacao/gold/`, `sql/ddl/`, `sql/dml/` |
+| Vitor Cristiano Dahmer | operações OLAP | `olap/` |
+| Julia Stefanni Muniz dos Santos | documentação técnica, conferência entre as camadas e vídeo | `README.md`, `docs/` |
 
 ## Como executar
 
@@ -197,5 +302,5 @@ Os testes não acessam rede nem o Azure: a fonte é simulada com arquivos Parque
 | `infra/` | provisionamento e extração no Azure |
 | `sql/` | transformações (Synapse), DDL e DML (Azure SQL) |
 | `olap/` | consultas OLAP e evidências |
-| `docs/` | documentação de apoio |
+| `docs/` | diagrama da arquitetura, vídeo demonstrativo e conferência entre as camadas |
 | `.github/` | CI, template de pull request e responsáveis por pasta |

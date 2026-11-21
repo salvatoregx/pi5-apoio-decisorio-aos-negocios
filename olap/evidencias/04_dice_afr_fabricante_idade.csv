@@ -1,0 +1,10 @@
+fabricante,id_faixa_idade,faixa_idade,dias_disco,falhas,afr_pct,idade_media_anos
+Seagate,3,3 a 4 anos,31566250,1474,1.70,4.00
+Seagate,4,5 a 6 anos,10263404,762,2.71,5.75
+Seagate,5,>= 7 anos,13790718,894,2.37,7.92
+Toshiba,3,3 a 4 anos,27034375,915,1.24,3.92
+Toshiba,4,5 a 6 anos,4398887,295,2.45,5.47
+Toshiba,5,>= 7 anos,96151,14,5.31,7.15
+Western Digital,3,3 a 4 anos,8353688,249,1.09,3.83
+Western Digital,4,5 a 6 anos,316377,5,0.58,5.09
+Western Digital,5,>= 7 anos,327,0,0.00,8.80

@@ -2,7 +2,8 @@
 
 Projeto Integrador do 5º semestre (Senac). Pipeline ELT e data warehouse sobre o
 [Backblaze Drive Stats](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data):
-registros diários de SMART e falhas de cerca de 350 mil discos, usados para analisar
+registros diários de SMART e falhas de uma frota de cerca de 350 mil discos em operação (419.891 discos
+diferentes ao longo da janela), usados para analisar
 confiabilidade por modelo e fabricante, fatores de risco (temperatura, idade, localização)
 e sinais de falha iminente.
 
@@ -17,10 +18,10 @@ derivado delas, e as operações OLAP respondem a elas.
 | # | Pergunta | Decisão apoiada | Onde está no DW | Consulta OLAP |
 |---|---|---|---|---|
 | 1 | **Confiabilidade:** qual modelo ou fabricante falha menos? | especificação dos próximos lotes de compra | `fato_confiabilidade_mensal` × `dim_modelo` (AFR) | [01](olap/consultas/01_rollup_afr_fabricante_modelo.sql), [05](olap/consultas/05_pivot_afr_fabricante_ano.sql) |
-| 2 | **Fatores de risco:** temperatura, idade e localização influenciam as falhas? | ajuste de refrigeração e prioridades de infraestrutura | `fato_confiabilidade_faixas` (faixas de idade e de temperatura), `fato_confiabilidade_mensal` × `dim_datacenter` | [03](olap/consultas/03_slice_afr_temperatura_2025.sql) |
+| 2 | **Fatores de risco:** temperatura, idade e localização influenciam as falhas? | ajuste de refrigeração e prioridades de infraestrutura | `fato_confiabilidade_faixas` (faixas de idade e de temperatura), `fato_confiabilidade_mensal` × `dim_datacenter` | [03](olap/consultas/03_slice_afr_temperatura_2025.sql), [04](olap/consultas/04_dice_afr_fabricante_idade.sql), [06](olap/consultas/06_temperatura_datacenter.sql) |
 | 3 | **Manutenção preditiva:** quais atributos SMART sinalizam falha iminente? | fila de substituição preventiva | `dim_disco` (máximos dos SMART 5, 187, 188, 197 e 198 e situação do disco) | [07](olap/consultas/07_smart_preditores_falha.sql) |
 | 4 | **Setorização física:** há datacenter com mais falhas ou mais quente? | investigação de causas locais | `fato_temperatura_dc_dia` (p50, p95 e máximo por dia), `fato_confiabilidade_mensal` × `dim_datacenter` | [06](olap/consultas/06_temperatura_datacenter.sql) |
-| 5 | **Vida útil e substituição:** como o AFR evolui com a idade do disco? | planejamento de reposição | `fato_confiabilidade_faixas` × `dim_faixa_idade` | [02](olap/consultas/02_drilldown_afr_ano_trimestre_mes.sql), [04](olap/consultas/04_dice_afr_fabricante_idade.sql) |
+| 5 | **Vida útil e substituição:** como o AFR evolui com a idade do disco? | planejamento de reposição | `fato_confiabilidade_faixas` × `dim_faixa_idade` | [04](olap/consultas/04_dice_afr_fabricante_idade.sql) (por idade), [02](olap/consultas/02_drilldown_afr_ano_trimestre_mes.sql) (no calendário) |
 
 ## Arquitetura
 
@@ -51,6 +52,7 @@ Todos os recursos ficam no grupo `rg-pi5`, região Brazil South, numa assinatura
 | Azure Container Instances | execução da extração na nuvem | contêiner sob demanda, cobrado só enquanto roda; não depende da máquina de ninguém |
 | ADLS Gen2 | data lake (bronze, silver, gold) | armazenamento hierárquico barato, lido nativamente pelo Synapse |
 | Synapse Analytics (serverless) | transformação em SQL sobre o lake | cobrado por volume lido, sem cluster ligado |
+| Synapse Pipelines (atividade Copy) | carga da gold do lake para o staging do Azure SQL | sem código, no mesmo workspace, autenticado pela identidade gerenciada |
 | Azure SQL Database (oferta gratuita) | data warehouse | T-SQL completo para DDL, DML e OLAP, sem custo dentro da cota mensal |
 | Microsoft Entra ID + identidades gerenciadas | autenticação | nenhuma senha ou chave no código; acesso por papel (RBAC) |
 | az CLI + Bash | provisionamento | scripts idempotentes em `infra/` |
@@ -91,7 +93,7 @@ Estrutura da bronze:
 
 ```
 lake/bronze/drivestats/
-├── ano_mes=2021-07/parte_01.parquet ... parte_29.parquet
+├── ano_mes=2021-07/parte_01.parquet ... parte_29.parquet   (uma parte por fatia de 7 dias, nomeada pelo dia inicial)
 ├── ...
 ├── ano_mes=2026-06/...
 └── _controle/2021-07.json ... 2026-06.json
@@ -164,7 +166,7 @@ erDiagram
 
 - **DDL** ([`sql/ddl/`](sql/ddl/)): tabelas com tipos, PK, FK, `UNIQUE`, `CHECK` e colunas calculadas (`afr_pct`, `temperatura_media`). Dimensões com chave substituta (`sk_*`), fatos com PK no grão. Scripts idempotentes (`IF OBJECT_ID(...) IS NULL`).
 - **Carga:** uma atividade Copy do Synapse Pipelines leva o Parquet da gold para tabelas de staging (`stg.*`), com os mesmos nomes de coluna.
-- **DML** ([`sql/dml/`](sql/dml/)): `MERGE` da staging para dimensões e fatos, trocando nomes e códigos pelas chaves substitutas; `dim_calendario` é gerada no banco e `dim_datacenter` vem de `config/datacenters.json`. Cada carga valida a staging (vazia, chave repetida, código sem dimensão) no mesmo lote do `MERGE`; se falhar, nada é gravado.
+- **DML** ([`sql/dml/`](sql/dml/)): `MERGE` da staging para dimensões e fatos, trocando nomes e códigos pelas chaves substitutas; `dim_calendario` é gerada no banco e `dim_datacenter` usa os valores de `config/datacenters.json`, transcritos no script de carga. Cada carga valida a staging (vazia, chave repetida, código sem dimensão) no mesmo lote do `MERGE`; se falhar, nada é gravado.
 - **AFR:** `100 × falhas / (dias_disco / 365)`. Ao reagregar, as consultas somam `falhas` e `dias_disco` e recalculam; nunca tiram média de AFR.
 
 Ordem de execução completa (gold, DDL, cópia e DML): [`sql/README.md`](sql/README.md).
@@ -246,7 +248,7 @@ mostra as mesmas linhas (47.258), falhas (20.310) e dias-disco (493.160.806) da 
 - **Censura à esquerda e à direita.** Discos que já operavam em 2021-07 têm vida anterior não observada (a
   idade vem do SMART 9), e a saída de um disco da frota não equivale a falha.
 - **Volume mínimo para o AFR.** Taxas de modelos com pouca observação não são comparáveis; as consultas
-  OLAP aplicam o corte da Backblaze (mais de 100 mil dias-disco).
+  OLAP aplicam o corte da Backblaze (a partir de 100 mil dias-disco).
 - **Catálogo de fabricantes heterogêneo.** Os fabricantes declaram potência por critérios diferentes, e
   modelos fora do catálogo entram com as especificações nulas.
 

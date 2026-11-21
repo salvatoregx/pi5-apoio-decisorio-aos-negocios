@@ -11,7 +11,7 @@ Scripts SQL do projeto, executados no Azure.
 
 Convenções:
 
-- Um objeto por arquivo, com prefixo numérico para a ordem de execução (`01_dim_calendario.sql`).
+- Um objeto principal por arquivo, com prefixo numérico para a ordem de execução (`ddl/02_dim_calendario.sql`).
 - Scripts idempotentes: rodar duas vezes não pode duplicar dados.
 - Nomes em português, `snake_case`, sem acentos.
 
@@ -34,6 +34,18 @@ Convenções:
 `fato_confiabilidade_faixas` e as duas dimensões de faixa são um acréscimo ao modelo da 1ª etapa: sem elas,
 o AFR por idade (pergunta 5) e por temperatura (pergunta 2) só sairia de médias por disco.
 
+### Diferenças em relação à 1ª etapa
+
+As sete tabelas da proposta da 1ª etapa existem no DW. Algumas colunas mudaram de lugar ou ficaram de fora:
+
+| Proposta da 1ª etapa | No DW | Motivo |
+|---|---|---|
+| `dim_modelo`: `qtd_discos`, `qtd_falhas`, `dias_disco_janela` | não gravadas na dimensão | são medidas: saem das fatos (`SUM(dias_disco)`, `SUM(falhas)`) e de `dim_disco` (contagem de discos). Na dimensão ficariam desatualizadas a cada carga. A staging recebe os valores da gold, mas a carga só grava os atributos |
+| `dim_disco`: `id_cluster`, `id_vault`, `id_pod` | fora | a localização física abaixo do datacenter só existe desde 2023, e a própria Backblaze avisa que o cluster nem sempre está correto. A silver preserva os campos, e a dimensão de localização ficou como evolução prevista (README) |
+| `dim_disco`: `erros_crc_udma_max` (SMART 199) | fora | mede erros de interface (cabo e backplane), não desgaste do disco, e não está entre os preditores da Backblaze. A dimensão guarda os cinco preditores (SMART 5, 187, 188, 197 e 198); o SMART 199 continua na silver |
+| `dim_disco`: `qtd_modelos_distintos`, `qtd_datacenters` | fora | eram indicadores de consistência da exploração da 1ª etapa (número de série com mais de um modelo, disco que mudou de datacenter) e não respondem às perguntas de negócio. Podem ser recalculados a partir de `gold.disco_mes` |
+| visões `vw_disco_dia` e `vw_afr_modelo_trimestre` | substituídas | a primeira virou as views da silver no Synapse; a segunda, as consultas OLAP (o AFR por trimestre sai do drill-down) |
+
 Regras aplicadas:
 
 - **AFR** = `100 × falhas / (dias_disco / 365)`, coluna calculada nas fatos. Ao reagregar, somar `falhas` e
@@ -41,7 +53,7 @@ Regras aplicadas:
 - **Datacenter efetivo** = `COALESCE(datacenter do dia, último datacenter conhecido do disco)`; sem nenhum,
   `desconhecido`. As fatos guardam quantos dias-disco foram imputados.
 - **Datacenter vazio na fonte:** parte das linhas da Backblaze traz o datacenter como texto vazio (`''`), não
-  como nulo. A gold só imputa o nulo; na carga do DW o vazio vai para `desconhecido`. Na carga de 2026-11 foram
+  como nulo. A gold só imputa o nulo; na carga do DW o vazio vai para `desconhecido`. Na carga de novembro de 2026 foram
   ~16,3 milhões de dias-disco (3,3%). O AFR por modelo e fabricante não é afetado; a análise por datacenter
   fica com essa fatia sem local.
 - **Chaves:** dimensões com chave substituta (`sk_*`, `IDENTITY`) e chave natural `UNIQUE`; o `MERGE` pela

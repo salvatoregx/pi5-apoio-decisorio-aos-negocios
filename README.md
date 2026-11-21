@@ -244,7 +244,7 @@ mostra as mesmas linhas (47.258), falhas (20.310) e dias-disco (493.160.806) da 
   OLAP aplicam o corte da Backblaze (mais de 100 mil dias-disco).
 - **Catálogo de fabricantes heterogêneo.** Os fabricantes declaram potência por critérios diferentes, e
   modelos fora do catálogo entram com as especificações nulas.
-- 
+
 ## Evolução prevista
 
 A silver preserva os campos de localização física (`id_vault`, `id_pod`, `slot_pod`), então o modelo pode

@@ -1,0 +1,23 @@
+ano,datacenter,cidade,pais,discos_medios_dia,temperatura_media_c,maior_p95_diario_c,falhas,afr_pct
+2023,sac2,Sacramento ou Stockton (não confirmado),Estados Unidos,56501,37.64,53,530,0.94
+2023,ams5,Amsterdã,Países Baixos,12413,33.78,45,110,0.90
+2023,iad1,Reston / Norte da Virgínia,Estados Unidos,14912,33.53,44,63,0.93
+2023,phx1,Phoenix,Estados Unidos,80130,33.45,43,457,0.57
+2023,sac0,Sacramento ou Stockton (não confirmado),Estados Unidos,82660,29.64,41,852,1.03
+2024,sac2,Sacramento ou Stockton (não confirmado),Estados Unidos,60418,35.61,48,1364,2.25
+2024,ams5,Amsterdã,Países Baixos,16001,33.80,44,251,1.57
+2024,iad1,Reston / Norte da Virgínia,Estados Unidos,23166,33.66,42,283,1.22
+2024,phx1,Phoenix,Estados Unidos,89571,33.43,42,1141,1.27
+2024,sac0,Sacramento ou Stockton (não confirmado),Estados Unidos,79858,30.39,42,1473,1.84
+2025,ams5,Amsterdã,Países Baixos,23478,36.21,45,455,1.94
+2025,sac2,Sacramento ou Stockton (não confirmado),Estados Unidos,69939,35.00,49,1282,1.84
+2025,iad1,Reston / Norte da Virgínia,Estados Unidos,43085,34.05,43,381,0.88
+2025,phx1,Phoenix,Estados Unidos,100287,33.39,44,1114,1.11
+2025,yyz1,Toronto,Canadá,3598,31.07,40,11,0.31
+2025,sac0,Sacramento ou Stockton (não confirmado),Estados Unidos,78052,30.27,42,1084,1.39
+2026,ams5,Amsterdã,Países Baixos,29382,36.99,45,227,1.56
+2026,sac2,Sacramento ou Stockton (não confirmado),Estados Unidos,72784,36.42,47,867,2.40
+2026,iad1,Reston / Norte da Virgínia,Estados Unidos,52380,34.16,43,279,1.07
+2026,phx1,Phoenix,Estados Unidos,107816,33.82,42,576,1.08
+2026,yyz1,Toronto,Canadá,3595,31.32,40,8,0.45
+2026,sac0,Sacramento ou Stockton (não confirmado),Estados Unidos,76313,30.09,42,595,1.57

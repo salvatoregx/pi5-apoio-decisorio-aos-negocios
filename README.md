@@ -244,9 +244,13 @@ mostra as mesmas linhas (47.258), falhas (20.310) e dias-disco (493.160.806) da 
   OLAP aplicam o corte da Backblaze (mais de 100 mil dias-disco).
 - **Catálogo de fabricantes heterogêneo.** Os fabricantes declaram potência por critérios diferentes, e
   modelos fora do catálogo entram com as especificações nulas.
-- **Itens previstos na 1ª etapa fora desta entrega**, que cobra DDL, DML e OLAP: dimensão de localização
-  física (vault, pod e slot, que seguem disponíveis na silver), score de risco e limiares de alerta
-  calibrados, análise de sobrevivência, dados meteorológicos e painéis.
+- 
+## Evolução prevista
+
+A silver preserva os campos de localização física (`id_vault`, `id_pod`, `slot_pod`), então o modelo pode
+ganhar uma dimensão de localização e uma fato nesse grão sem nova extração, como previsto na 1ª etapa.
+Também ficam como continuação o score de risco com limiares calibrados, a análise de sobrevivência e a
+integração com dados meteorológicos.
 
 ## Equipe
 

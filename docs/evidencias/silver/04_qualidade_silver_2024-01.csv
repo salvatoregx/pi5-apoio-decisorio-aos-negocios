@@ -1,0 +1,2 @@
+﻿ano_mes,total_linhas_silver,discos_distintos,total_falhas,qtd_capacidade_invalida_ou_nula,qtd_temperatura_ausente,qtd_temperatura_invalida,qtd_horas_ligado_ausente,qtd_horas_ligado_invalida,qtd_sem_datacenter,qtd_fabricante_desconhecido,qtd_ssd,qtd_hdd,qtd_boot,qtd_dados
+2024-01,8466958,277449,357,1225,14589,0,14589,0,0,0,101964,8364994,135275,8331683

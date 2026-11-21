@@ -7,6 +7,7 @@ confiabilidade por modelo e fabricante, fatores de risco (temperatura, idade, lo
 e sinais de falha iminente.
 
 **Vídeo demonstrativo (1 min):** [docs/video_PI5_grupo2.mp4](docs/video_PI5_grupo2.mp4)
+(o GitHub não reproduz o vídeo no navegador: use *Download raw file* na página do arquivo)
 
 ## Perguntas de negócio
 
@@ -118,6 +119,8 @@ Os scripts da camada Silver ficam em [`sql/transformacao/silver/`](sql/transform
    - **Segmentações operacionais:** Faixas de temperatura de 5 em 5 °C e faixas de idade em anos, com rótulos neutros e colunas de ordem (`ordem_faixa_temperatura`, `ordem_faixa_idade`) para ordenar nas consultas OLAP; flag de temperatura $\ge 40$ °C e flag para registros sem datacenter (localização só existe a partir de 2023).
 6. **`06_auditoria_regras_silver.sql`**: Consultas de auditoria, para rodar à mão, com 4 testes de integridade (volumetria e descarte de duplicatas, monitoramento de marcas desconhecidas, saneamento conferido contra a bronze e comparação entre alertas preditivos e falhas reais).
 
+Evidências da validação em 2024-01 ([`docs/evidencias/silver/`](docs/evidencias/silver/)): 8.466.958 linhas na bronze e na silver, sem duplicatas; nenhum fabricante desconhecido; capacidades, temperaturas e horas anuladas na silver iguais às inválidas na bronze; 77,87% dos dias de falha com algum alerta SMART, contra 6,65% dos dias sem falha. Cada consulta leu entre 28 e 75 MB, o que confirma que o filtro por mês lê só as pastas daquele mês.
+
 ### Camada Gold (`sql/transformacao/gold/`)
 
 A gold é calculada no Synapse serverless e gravada no lake (`lake/gold/`) com CETAS (`CREATE EXTERNAL TABLE AS SELECT`). As agregações pesadas sobre os ~493 milhões de dias-disco ficam no serverless; o Azure SQL recebe só o resultado, que é pequeno.
@@ -207,7 +210,7 @@ mostra as mesmas linhas (47.258), falhas (20.310) e dias-disco (493.160.806) da 
 | **Roll-up** (modelo → fabricante → total) | [01](olap/consultas/01_rollup_afr_fabricante_modelo.sql) | 1 | AFR na janela completa: Western Digital 0,61%, Toshiba 1,17%, HGST 1,82%, Seagate 1,92%; frota de dados 1,48%. Dentro de cada fabricante, os modelos variam bastante (Seagate de 0,36% a 6,74%). |
 | **Drill-down** (ano → trimestre → mês) | [02](olap/consultas/02_drilldown_afr_ano_trimestre_mes.sql) | 5 | Seagate: o AFR anual sobe de 1,54% (2021) para 2,44% (2023) e volta a 1,58% em 2025; o pico trimestral é o 2º trimestre de 2023 (3,20%). |
 | **Slice** (ano = 2025) | [03](olap/consultas/03_slice_afr_temperatura_2025.sql) | 2 | AFR por faixa de temperatura: entre 25 °C e 44 °C fica entre 1,18% e 1,38%; os extremos sobem (2,68% abaixo de 20 °C e 2,18% a partir de 45 °C). A faixa "não informada" tem só 220 dias-disco e não permite conclusão. |
-| **Dice** (fabricante × período × idade) | [04](olap/consultas/04_dice_afr_fabricante_idade.sql) | 5 | AFR de Seagate, Toshiba e Western Digital em 2024–2025, nas faixas a partir de 3 anos de idade. |
+| **Dice** (fabricante × período × idade) | [04](olap/consultas/04_dice_afr_fabricante_idade.sql) | 5 | AFR de Seagate, Toshiba e Western Digital em 2024–2025, nas faixas a partir de 3 anos de idade: Seagate e Toshiba sobem de 1,70% e 1,24% (3 a 4 anos) para 2,71% e 2,45% (5 a 6 anos); Western Digital fica em 1,09% e 0,58%. As faixas a partir de 7 anos de Toshiba e Western Digital têm menos de 100 mil dias-disco e não permitem conclusão. |
 | **Pivot** (fabricantes × anos) | [05](olap/consultas/05_pivot_afr_fabricante_ano.sql) | 1 | HGST passa de 0,34% (2021) para 3,79% (2026); Western Digital fica abaixo de 1% em todos os anos; Toshiba é a mais estável (0,89% a 1,25%). |
 | Complementar | [06](olap/consultas/06_temperatura_datacenter.sql) | 4 | De 2023 em diante, `sac2` e `ams5` são os dois datacenters mais quentes em todos os anos (médias entre 33,8 °C e 37,6 °C), e o `sac2` tem o maior AFR em 2024 e 2026. |
 | Complementar | [07](olap/consultas/07_smart_preditores_falha.sql) | 3 | 79,6% dos discos que falharam tinham algum dos cinco SMART preditores acima de zero, contra 9,3% dos que não falharam. |
@@ -216,10 +219,12 @@ mostra as mesmas linhas (47.258), falhas (20.310) e dias-disco (493.160.806) da 
 
 ### Decisões
 
-- **ELT em vez de ETL.** O Synapse serverless não lê tabelas Iceberg. A extração com DuckDB converte o
-  snapshot da fonte em Parquet na bronze, e a transformação acontece dentro do lake. Foram avaliadas a
-  cópia direta dos arquivos do Iceberg (perderia o esquema unificado entre os anos e traria colunas quase
-  vazias) e o Spark (cluster cobrado por hora, desproporcional para ~16 GB).
+- **ELT em vez de ETL.** Os dados brutos são carregados no lake e transformados lá mesmo, em SQL no
+  Synapse serverless: sem servidor próprio e perto dos dados.
+- **Extração com DuckDB.** O Synapse serverless não lê tabelas Iceberg; o DuckDB converte o snapshot da
+  fonte em Parquet na bronze, conferindo cada mês com o manifesto. Foram avaliadas a cópia direta dos
+  arquivos do Iceberg (perderia o esquema unificado entre os anos e traria colunas quase vazias) e o Spark
+  (cluster cobrado por hora, desproporcional para ~16 GB).
 - **Silver como view, gold materializada.** A silver não duplica os ~493 milhões de linhas; a gold é
   pequena e consultada muitas vezes, por isso é gravada com CETAS.
 - **Agregações no serverless, só a gold no Azure SQL.** O serverless cobra por volume lido e o Azure SQL
